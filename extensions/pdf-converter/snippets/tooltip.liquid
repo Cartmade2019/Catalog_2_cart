@@ -48,7 +48,9 @@
                     </button>
                     <button type="button"
                         class="add-to-cart-btn pointer-events-auto cursor-pointer bg-blue-500 text-white  py-[{{buttonData.paddingY}}px] px-[{{buttonData.paddingX}}px]  rounded hover:bg-blue-600 transition mt-4">
-                        view product
+                        <a href="/products/{{product.handle}}" target="_blank">
+                            view product
+                        </a>
                     </button>
                 </form>
                 {% else %}

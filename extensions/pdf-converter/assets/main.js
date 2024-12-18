@@ -97,10 +97,26 @@ const flipBook = (elBook) => {
               if (targetPopover) {
                 targetPopover.classList.add("hidden");
               }
+              const cartPopup = document.getElementById("cart-popup");
+              const closePopupButton = document.getElementById("close-popup");
+              const continueShopping =
+                document.getElementById("continue-shopping");
+              if (cartPopup) {
+                cartPopup.classList.remove("hidden");
+                cartPopup.classList.add("flex");
+
+                closePopupButton.addEventListener("click", () => {
+                  cartPopup.classList.add("hidden");
+                  cartPopup.classList.remove("flex");
+                });
+              }
+              continueShopping.addEventListener("click", () => {
+                cartPopup.classList.add("hidden");
+                cartPopup.classList.remove("flex");
+              });
+
               if (!data) {
-                alert("Failed to add product");
-              } else {
-                alert("Product added to your cart!");
+                console.error("Failed to add product");
               }
             })
             .catch((error) => {
