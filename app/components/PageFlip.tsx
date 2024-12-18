@@ -31,6 +31,7 @@ const PageFlip = ({
   hotspotColor,
 }: IMAGES) => {
   const fetcher = useFetcher();
+
   const plan = useSelector((state: any) => state.plan.plan);
   const colorPalette = [
     "#FF5733",
@@ -121,7 +122,6 @@ const PageFlip = ({
     const imageHeight = rect.height;
     const xPercentage = (x / imageWidth) * 100;
     const yPercentage = (y / imageHeight) * 100;
-    var a = x + ": " + xPercentage + "||" + y + ":" + yPercentage;
 
     const selected: any = await shopify.resourcePicker({
       type: "product",
@@ -408,7 +408,16 @@ const PageFlip = ({
                                 </div>
 
                                 <div className="flex gap-2 items-center">
-                                  <Button>View Product</Button>
+                                  <Button
+                                    onClick={() => {
+                                      window.open(
+                                        `https://admin.shopify.com/store/${shopName.replaceAll(".myshopify.com", "")}/products/${selectedMarker.productId.split("/").pop()}`,
+                                        "_blank",
+                                      );
+                                    }}
+                                  >
+                                    View Product
+                                  </Button>
                                   <Button
                                     onClick={handleRemoveMarker}
                                     variant="primary"

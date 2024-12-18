@@ -44,11 +44,14 @@ import { pageInformation, PDFVALUES } from "app/constants/types";
 import { useDispatch, useSelector } from "react-redux";
 import { addPlan } from "app/store/slices/planSlice";
 import DeleteModal from "app/components/DeleteModal";
+import { pollFileStatus } from "../utils/utils";
 
 let valueToFetch = 2;
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
   const { shop, accessToken } = session;
+  if (!accessToken) return;
+
   if (request.method === "POST" || request.method === "post") {
     const uploadHandler = unstable_createFileUploadHandler({
       directory: path.join(process.cwd(), "public", "uploads"),
@@ -139,33 +142,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const fileIds = createFileQueryResult.data.data.fileCreate.files.map(
       (file: any) => file.id,
     );
-
-    const GET_FILE_QUERY = `
-    query GetFilePreviews($ids: [ID!]!) {
-      nodes(ids: $ids) {
-        ... on File {
-          fileStatus
-          preview {
-          image {
-            url
-          }
-        }
-      }
-    }
-  }
-  `;
-
-    await sleep(5000);
-    const response = await admin.graphql(GET_FILE_QUERY, {
-      variables: {
-        ids: fileIds,
-      },
-    });
-
-    const { data } = await response.json();
-    const metaFieldImage = data.nodes.map(
-      ({ preview }: any) => preview.image.url,
-    );
+    const previewUrls = await pollFileStatus(shop, accessToken, fileIds);
 
     const key = generateRandomString();
 
@@ -178,9 +155,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         pdfSizeInKB,
         view,
         date: new Date().toLocaleDateString(),
-        images: metaFieldImage.map((img: string, index: number) => ({
+        images: previewUrls.map((data: any, index: number) => ({
           id: index + 1,
-          url: img,
+          url: data.preview.image.url,
           points: [],
         })),
       }),
@@ -199,7 +176,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       },
     );
 
-    if (!data) {
+    if (!imageData) {
       return json({ error: "Failed to save metafield" }, { status: 400 });
     }
     // Delete temporary uploaded images

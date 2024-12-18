@@ -181,3 +181,67 @@ export function generateRandomString() {
   }
   return result;
 }
+
+export const pollFileStatus = async (
+  shop: string,
+  accessToken: string,
+  fileIds: string[],
+) => {
+  const GET_FILE_QUERY = `
+    query GetFilePreviews($ids: [ID!]!) {
+      nodes(ids: $ids) {
+        ... on File {
+          fileStatus
+          preview {
+            image {
+              url
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  let status = "";
+  let retries = 10;
+  const interval = 3000;
+
+  while (retries > 0) {
+    try {
+      const response = await axios.post(
+        `https://${shop}/admin/api/2024-10/graphql.json`,
+        {
+          query: GET_FILE_QUERY,
+          variables: { ids: fileIds },
+        },
+        {
+          headers: {
+            "X-Shopify-Access-Token": accessToken,
+          },
+        },
+      );
+
+      const data = response.data.data.nodes;
+
+      const processedFiles = data.filter((file: any) => file.preview);
+      if (processedFiles.length > 0) {
+        status = processedFiles[0].fileStatus;
+        console.log(status, "File Status");
+
+        if (status === "READY") {
+          console.log(processedFiles, "Processed Files");
+          return processedFiles;
+        }
+      }
+    } catch (error: any) {
+      console.error("Error while polling file status:", error.message);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, interval));
+    retries--;
+  }
+
+  throw new Error(
+    "File status polling timed out or failed after maximum retries.",
+  );
+};
