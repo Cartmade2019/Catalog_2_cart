@@ -9,7 +9,6 @@ embedded = true
 [build]
 automatically_update_urls_on_dev = true
 dev_store_url = "prachanda-test.myshopify.com"
-include_config_on_deploy = true
 
 [access.admin]
 direct_api_mode = "online"

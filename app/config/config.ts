@@ -11,9 +11,9 @@ import {
   CartIcon,
 } from "@shopify/polaris-icons";
 import AnimationTypes from "app/components/AnimationTypes";
-import AppSettings from "app/components/AppSettings";
-import ButtonDesign from "app/components/ButtonDesign";
-import ToolTipSettings from "app/components/ToolTipSettings";
+import AppSettings from "../components/AppSettings";
+import ButtonDesign from "../components/ButtonDesign";
+import ToolTipSettings from "../components/ToolTipSettings";
 
 export const buttonsName: buttonsNameTypes[] = [
   { index: 1, link: "app", name: "App", component: AppSettings },

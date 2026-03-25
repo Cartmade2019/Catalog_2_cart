@@ -36,14 +36,14 @@ import {
   generateRandomString,
   sleep,
   uploadImage,
-} from "app/utils/utils";
-import { apiVersion, authenticate } from "app/shopify.server";
+} from "../utils/utils";
+import { apiVersion, authenticate } from "../shopify.server";
 import axios from "axios";
 import fs from "fs";
-import { pageInformation, PDFVALUES } from "app/constants/types";
+import { pageInformation, PDFVALUES } from "../constants/types";
 import { useDispatch, useSelector } from "react-redux";
-import { addPlan } from "app/store/slices/planSlice";
-import DeleteModal from "app/components/DeleteModal";
+import { addPlan } from "../store/slices/planSlice";
+import DeleteModal from "../components/DeleteModal";
 import { pollFileStatus } from "../utils/utils";
 
 let valueToFetch = 2;

@@ -1,9 +1,9 @@
 import { Button, ButtonGroup, Page } from "@shopify/polaris";
 import { useCallback, useState } from "react";
-import { buttonsName } from "app/config/config";
+import { buttonsName } from "../config/config";
 import { ActionFunctionArgs, json, LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import { apiVersion, authenticate } from "app/shopify.server";
+import { apiVersion, authenticate } from "../shopify.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);

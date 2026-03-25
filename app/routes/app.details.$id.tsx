@@ -1,11 +1,11 @@
 import { json } from "@remix-run/react";
-import { authenticate } from "app/shopify.server";
+import { authenticate } from "../shopify.server";
 import {
   ActionFunctionArgs,
   LoaderFunctionArgs,
   useLoaderData,
 } from "react-router";
-import PageFlip from "app/components/PageFlip";
+import PageFlip from "../components/PageFlip";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);

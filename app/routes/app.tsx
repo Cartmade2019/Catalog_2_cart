@@ -7,7 +7,7 @@ import { NavMenu } from "@shopify/app-bridge-react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import { Provider } from "react-redux";
 import { authenticate } from "../shopify.server";
-import { store } from "app/store/store";
+import { store } from "../store/store";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
