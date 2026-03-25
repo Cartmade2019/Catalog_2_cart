@@ -3,7 +3,7 @@
 client_id = "bd4502bb29e6f7490f7fd7773bc0984c"
 name = "Catalog to Cart -Shoppable PDF"
 handle = "catalog-to-cart"
-application_url = "https://hence-soma-interaction-exercises.trycloudflare.com"
+application_url = "https://pdf-converter-app-dc3cc08a6d4f.herokuapp.com/"
 embedded = true
 
 [build]
