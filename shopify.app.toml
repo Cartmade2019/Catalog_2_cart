@@ -20,11 +20,8 @@ direct_api_mode = "online"
 scopes = "write_files,read_files,write_themes"
 
 [auth]
-redirect_urls = [
-  "https://hence-soma-interaction-exercises.trycloudflare.com/auth/callback",
-  "https://hence-soma-interaction-exercises.trycloudflare.com/auth/shopify/callback",
-  "https://hence-soma-interaction-exercises.trycloudflare.com/api/auth/callback"
-]
+redirect_urls = ["https://pdf-converter-app-dc3cc08a6d4f.herokuapp.com/auth/callback", "https://pdf-converter-app-dc3cc08a6d4f.herokuapp.com/auth/shopify/callback", "https://pdf-converter-app-dc3cc08a6d4f.herokuapp.com/api/auth/callback"]
+
 
 [webhooks]
 api_version = "2024-07"

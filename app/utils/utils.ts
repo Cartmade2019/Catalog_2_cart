@@ -1,8 +1,12 @@
-import { fromPath } from "pdf2pic";
+import { execFile, execSync } from "child_process";
+import { promisify } from "util";
 import path from "path";
 import fs from "fs/promises";
+import fsSync from "fs";
 import axios from "axios";
 import { PDFDocument } from "pdf-lib";
+
+const execFileAsync = promisify(execFile);
 
 async function countPdfPages(filePath: string) {
   const pdfBytes = await fs.readFile(filePath);
@@ -10,32 +14,86 @@ async function countPdfPages(filePath: string) {
   return pdfDoc.getPageCount();
 }
 
+function findGhostscript(): string {
+  // 1. Check GS_PATH env var
+  if (process.env.GS_PATH) {
+    return process.env.GS_PATH;
+  }
+
+  const isWindows = process.platform === "win32";
+
+  if (isWindows) {
+    // 2. Try to find via 'where' command
+    for (const bin of ["gswin32c", "gswin64c"]) {
+      try {
+        const result = execSync(`where ${bin}`, { encoding: "utf8", timeout: 5000 }).trim();
+        if (result) {
+          // 'where' can return multiple lines; take the first one
+          const firstLine = result.split("\n")[0].trim();
+          console.log(`Found Ghostscript at: ${firstLine}`);
+          return firstLine;
+        }
+      } catch {
+        // not found, try next
+      }
+    }
+
+    // 3. Search common install directories
+    const programFiles = ["C:\\Program Files (x86)", "C:\\Program Files"];
+    for (const pf of programFiles) {
+      const gsDir = path.join(pf, "gs");\
+      try {
+        const versions = fsSync.readdirSync(gsDir);
+        for (const ver of versions.reverse()) { // reverse to get latest version first
+          for (const bin of ["gswin32c.exe", "gswin64c.exe"]) {
+            const candidate = path.join(gsDir, ver, "bin", bin);
+            if (fsSync.existsSync(candidate)) {
+              console.log(`Found Ghostscript at: ${candidate}`);
+              return candidate;
+            }
+          }
+        }
+      } catch {
+        // directory doesn't exist, skip
+      }
+    }
+
+    throw new Error(
+      "Ghostscript not found. Please install Ghostscript and set the GS_PATH environment variable to the full path of gswin32c.exe or gswin64c.exe."
+    );
+  }
+
+  // Non-Windows: just use 'gs'
+  return "gs";
+}
+
 export const extractImagesFromPDF = async (
   pdfPath: string,
 ): Promise<string[]> => {
   const outputDir = path.dirname(pdfPath);
   const outputPrefix = path.basename(pdfPath, path.extname(pdfPath));
-
-  const options = {
-    density: 100,
-    saveFilename: outputPrefix,
-    savePath: outputDir,
-    format: "png",
-    // width: 1655,
-    // height: 2339,
-  };
   const totalPages = await countPdfPages(pdfPath);
-  const convert = fromPath(pdfPath, options);
+  const gsBinary = findGhostscript();
+  console.log(`Using Ghostscript binary: ${gsBinary}`);
 
   const imageUrls: string[] = [];
+
   for (let page = 1; page <= totalPages; page++) {
+    const outputFile = path.join(outputDir, `${outputPrefix}_page_${page}.png`);
     try {
-      const resolve = await convert(page, { responseType: "image" });
-      const imagePath: any = resolve.path;
-      const imageUrl = `/uploads/${path.basename(imagePath)}`;
-      imageUrls.push(imageUrl);
+      await execFileAsync(gsBinary, [
+        "-dNOPAUSE",
+        "-dBATCH",
+        "-sDEVICE=png16m",
+        "-r150",
+        `-dFirstPage=${page}`,
+        `-dLastPage=${page}`,
+        `-sOutputFile=${outputFile}`,
+        pdfPath,
+      ]);
+      imageUrls.push(`/uploads/${path.basename(outputFile)}`);
     } catch (err) {
-      console.error(`Error converting page to image:`, err);
+      console.error(`Error converting page ${page} to image:`, err);
     }
   }
 

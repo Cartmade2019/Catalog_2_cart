@@ -53,10 +53,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (!accessToken) return;
 
   if (request.method === "POST" || request.method === "post") {
+    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    fs.mkdirSync(uploadDir, { recursive: true });
+
+    let savedFilename = "";
     const uploadHandler = unstable_createFileUploadHandler({
-      directory: path.join(process.cwd(), "public", "uploads"),
-      maxPartSize: 5_000_000,
-      file: ({ filename }) => filename,
+      directory: uploadDir,
+      maxPartSize: 50_000_000,
+      file: ({ filename }) => {
+        savedFilename = `${Date.now()}-${filename}`;
+        return savedFilename;
+      },
     });
 
     const formData = await unstable_parseMultipartFormData(
@@ -64,12 +71,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       uploadHandler,
     );
 
-    const pdf = formData.get("pdf") as File;
-    const pdfName: any = formData.get("pdfName") || pdf?.name || "Untitled PDF";
-    const view = (formData.get("view") as string) || "list";
-    if (!pdf) return json({ error: "No file uploaded" }, { status: 400 });
+    const pdfFile = formData.get("pdf") as any;
+    if (!pdfFile || !savedFilename) {
+      return json({ error: "No file uploaded" }, { status: 400 });
+    }
 
-    const pdfPath = path.join(process.cwd(), "public", "uploads", pdf.name);
+    const pdfName: any = formData.get("pdfName") || pdfFile.name || savedFilename || "Untitled PDF";
+    const view = (formData.get("view") as string) || "list";
+
+    const pdfPath = path.join(uploadDir, savedFilename);
+    console.log("Saved file at:", pdfPath);
 
     const pdfStats = fs.statSync(pdfPath);
     const pdfSizeInBytes = pdfStats.size;
@@ -192,11 +203,53 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       if (err) console.error(`Error deleting file ${pdfPath}:`, err);
     });
 
-    return json({
-      success: true,
-      message: "PDF uploaded successfully",
-      imageData,
-    });
+    // Re-fetch the updated PDF list so the UI refreshes immediately
+    const GET_PDF_QUERY_REFRESH = `
+      query GetPDFQuery {
+        shop {
+          metafields(first: ${valueToFetch}, namespace: "PDF", reverse: true) {
+            pageInfo {
+              hasPreviousPage
+              hasNextPage
+              startCursor
+              endCursor
+            }
+            edges {
+              node {
+                id
+                namespace
+                key
+                jsonValue
+                type
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const listResponse = await admin.graphql(GET_PDF_QUERY_REFRESH);
+      const listData = await listResponse.json();
+      const pageInfo = listData.data.shop.metafields.pageInfo;
+      const pdfMetafields = listData.data.shop.metafields.edges.map(
+        (edge: any) => edge.node,
+      );
+      const pdfData = pdfMetafields.map((pdf: any) => ({
+        id: pdf.id.split("/")[pdf.id.split("/").length - 1],
+        pdfName: pdf.jsonValue?.pdfName ?? "Untitled Document",
+        frontPage: pdf.jsonValue?.images?.[0]?.url ?? "",
+        allImages: pdf.jsonValue?.images ?? [],
+        size: pdf.jsonValue?.pdfSizeInKB ?? "",
+        date: pdf.jsonValue?.date ?? "",
+        key: pdf.key,
+        namespace: pdf.namespace,
+        view: pdf.jsonValue?.view,
+      }));
+      return json({ success: true, pdfData, pageInfo, query: GET_PDF_QUERY_REFRESH });
+    } catch {
+      return json({ success: true, message: "PDF uploaded successfully", imageData });
+    }
   } else if (request.method === "DELETE" || request.method === "delete") {
     const formData = await request.formData();
     const metafieldIds: any = formData.get("metafieldIds");
@@ -253,6 +306,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
       if (!pdfMetafields.length) {
         console.warn("No PDF metafields found.");
+            
         return {
           pdfData: [],
 
@@ -339,6 +393,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
       if (!pdfMetafields.length) {
         console.warn("No PDF metafields found.");
+        
         return {
           pdfData: [],
           pricePlan: pricePlan.recurring_application_charges[0],
@@ -429,6 +484,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     );
     if (!pdfMetafields.length) {
       console.warn("No PDF metafields found.");
+
       return {
         pdfData: [],
         pricePlan: pricePlan.recurring_application_charges[0],
@@ -469,13 +525,11 @@ const PDFConverter = () => {
   const loader = useLoaderData<PDFVALUES>();
   const fetcher = useFetcher<PDFVALUES>();
   const dispatch = useDispatch();
-  const { pageInfo } = fetcher.data?.pageInfo ? fetcher.data : loader;
-
-  const { pdfData } =
-    fetcher.data?.pdfData && fetcher.data.pdfData.length
-      ? fetcher.data
-      : loader;
-  const { query } = fetcher.data?.query ? fetcher.data : loader;
+  // Prefer fetcher data whenever the action returned a pdfData array (including empty [])
+  const hasFetcherList = fetcher.data != null && "pdfData" in (fetcher.data as any);
+  const { pageInfo } = hasFetcherList ? (fetcher.data as any) : loader;
+  const { pdfData } = hasFetcherList ? (fetcher.data as any) : loader;
+  const { query } = hasFetcherList ? (fetcher.data as any) : loader;
 
   const [pageInformation, setPageInformation] = useState<pageInformation>({
     endCursor: "",
@@ -514,7 +568,7 @@ const PDFConverter = () => {
     formData.append("afterBefore", "after");
     formData.append("firstLast", "first");
     formData.append("pageToken", pageInformation.endCursor);
-    fetcher.submit(formData, { method: "put" });
+    fetcher.submit(formData, { method: "put" ,action: "/app/pdf-convert" });
   };
 
   const handlePrevPagination = async () => {
@@ -523,24 +577,25 @@ const PDFConverter = () => {
     formData.append("afterBefore", "before");
     formData.append("firstLast", "last");
     formData.append("pageToken", pageInformation.startCursor);
-    fetcher.submit(formData, { method: "put" });
+    fetcher.submit(formData, { method: "put" , action: "/app/pdf-convert"});
   };
 
   const handlePdfDelete = () => {
     const formData = new FormData();
     formData.append("metafieldIds", JSON.stringify(selectedResources));
     formData.append("query", query);
-    fetcher.submit(formData, { method: "delete" });
+    fetcher.submit(formData, { method: "delete", action: "/app/pdf-convert" });
     selectedResources.splice(0, selectedResources.length);
   };
 
   useEffect(() => {
+
     setUploadCount(pdfData ? pdfData.length : 0);
     setPageInformation(pageInfo);
     setIsPaginationLoading(false);
     setIsLoading(false);
     dispatch(addPlan(loader.pricePlan && loader?.pricePlan?.name));
-  }, [loader.pricePlan && loader?.pricePlan.name, pdfData, pageInfo]);
+  }, [pdfData, pageInfo, loader.pricePlan]);
 
   const handleFileChange = () => {
     if (uploadCount >= maxUploads) {
@@ -554,12 +609,13 @@ const PDFConverter = () => {
       setIsLoading(true);
       const formData = new FormData();
       formData.append("pdf", file);
-      formData.append("buttonView", view);
+      formData.append("view", view);
       fetcher.submit(formData, {
         method: "post",
         encType: "multipart/form-data",
+         action: "/app/pdf-convert",
       });
-      setUploadCount(uploadCount + 1);
+
       fileInputRef.current.value = "";
     }
   };
