@@ -1,4 +1,4 @@
-import { buttonsNameTypes, HotspotProps, IconItems } from "app/constants/types";
+import { buttonsNameTypes, HotspotProps, IconItems } from "../constants/types";
 
 import { IconSource } from "@shopify/polaris";
 import {
@@ -10,7 +10,7 @@ import {
   ArrowRightIcon,
   CartIcon,
 } from "@shopify/polaris-icons";
-import AnimationTypes from "app/components/AnimationTypes";
+import AnimationTypes from "../components/AnimationTypes";
 import AppSettings from "../components/AppSettings";
 import ButtonDesign from "../components/ButtonDesign";
 import ToolTipSettings from "../components/ToolTipSettings";

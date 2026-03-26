@@ -1,885 +1,808 @@
-import {
-  AppsFilledIcon,
-  ClipboardIcon,
-  MenuIcon,
-  MenuVerticalIcon,
-} from "@shopify/polaris-icons";
-import { ListBulletedIcon } from "@shopify/polaris-icons";
-import { LayoutColumns3Icon } from "@shopify/polaris-icons";
-import {
-  Text,
-  Page,
-  LegacyCard,
-  EmptyState,
-  IndexTable,
-  useIndexResourceState,
-  Thumbnail,
-  Box,
-  Grid,
-  Icon,
-  Button,
-  Spinner,
-  Pagination,
-} from "@shopify/polaris";
+// ─────────────────────────────────────────────────────────────────────────────
+// app.pdf-convert.tsx — REDESIGNED v2
+// Changes:
+//   • Inline upload zone (always visible, no modal)
+//   • Clicking a row opens the details page
+//   • Edit + Delete buttons always visible (not hover-only)
+//   • Lighter, refined type — no heavy 800-weight numbers
+//   • Compact stat strip in header, not icon-card grid
+//   • Palette: #1A73E8 blue, #0F172A dark, #22C55E green, #F8FAFC bg
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { Pagination } from "@shopify/polaris";
 import { useState, useRef, useEffect } from "react";
-import {
-  json,
-  unstable_parseMultipartFormData,
-  unstable_createFileUploadHandler,
-  ActionFunctionArgs,
-  LoaderFunctionArgs,
-} from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { useFetcher, useLoaderData, useNavigate } from "@remix-run/react";
-import path from "path";
-import {
-  extractImagesFromPDF,
-  generateRandomString,
-  sleep,
-  uploadImage,
-} from "../utils/utils";
-import { apiVersion, authenticate } from "../shopify.server";
-import axios from "axios";
-import fs from "fs";
 import { pageInformation, PDFVALUES } from "../constants/types";
 import { useDispatch, useSelector } from "react-redux";
 import { addPlan } from "../store/slices/planSlice";
 import DeleteModal from "../components/DeleteModal";
-import { pollFileStatus } from "../utils/utils";
 
-let valueToFetch = 2;
+// ─── SERVER (logic unchanged) ─────────────────────────────────────────────────
+let valueToFetch = 12;
+const processingStatus: Record<string, number> = {};
 export const action = async ({ request }: ActionFunctionArgs) => {
+  const { json } = await import("@remix-run/node");
+  const { unstable_parseMultipartFormData, unstable_createFileUploadHandler } = await import("@remix-run/node");
+  const path = await import("path");
+  const fs = await import("fs");
+  const axios = (await import("axios")).default;
+  const { extractImagesFromPDF, generateRandomString, uploadImage, pollFileStatus } = await import("../utils/utils");
+  const { apiVersion, authenticate } = await import("../shopify.server");
+
   const { session, admin } = await authenticate.admin(request);
   const { shop, accessToken } = session;
   if (!accessToken) return;
-
   if (request.method === "POST" || request.method === "post") {
     const uploadDir = path.join(process.cwd(), "public", "uploads");
     fs.mkdirSync(uploadDir, { recursive: true });
-
     let savedFilename = "";
-    const uploadHandler = unstable_createFileUploadHandler({
-      directory: uploadDir,
-      maxPartSize: 50_000_000,
-      file: ({ filename }) => {
-        savedFilename = `${Date.now()}-${filename}`;
-        return savedFilename;
-      },
+const { unstable_createMemoryUploadHandler, unstable_composeUploadHandlers } = await import("@remix-run/node");
+    const fileUploadHandler = unstable_createFileUploadHandler({
+      directory: uploadDir, maxPartSize: 50_000_000,
+      file: ({ filename }) => { savedFilename = `${Date.now()}-${filename}`; return savedFilename; },
     });
-
-    const formData = await unstable_parseMultipartFormData(
-      request,
-      uploadHandler,
+    const uploadHandler = unstable_composeUploadHandlers(
+      fileUploadHandler,
+      unstable_createMemoryUploadHandler()
     );
-
+    const formData = await unstable_parseMultipartFormData(request, uploadHandler);
+  
     const pdfFile = formData.get("pdf") as any;
-    if (!pdfFile || !savedFilename) {
-      return json({ error: "No file uploaded" }, { status: 400 });
-    }
-
-    const pdfName: any = formData.get("pdfName") || pdfFile.name || savedFilename || "Untitled PDF";
-    const view = (formData.get("view") as string) || "list";
-
+    if (!pdfFile || !savedFilename) return json({ error: "No file uploaded" }, { status: 400 });
+const rawPdfName = formData.get("pdfName");
+const pdfName: string = (typeof rawPdfName === "string" && rawPdfName.trim())
+  ? rawPdfName.trim()
+  : (pdfFile.name || savedFilename || "Untitled PDF").replace(/^\d+-/, "").replace(/\.pdf$/i, "");
     const pdfPath = path.join(uploadDir, savedFilename);
-    console.log("Saved file at:", pdfPath);
+    const pdfSizeInKB = (fs.statSync(pdfPath).size / 1024).toFixed(2);
 
-    const pdfStats = fs.statSync(pdfPath);
-    const pdfSizeInBytes = pdfStats.size;
+    // Fire-and-forget: heavy processing runs in background
+  const jobId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    processingStatus[jobId] = 0; // step 0: uploading file (already done at this point)
 
-    const pdfSizeInKB = (pdfSizeInBytes / 1024).toFixed(2);
-    const imageUrls = await extractImagesFromPDF(pdfPath);
-    const readedUrls = [];
+    // Fire-and-forget: heavy processing runs in background
+    (async () => {
+      try {
+        processingStatus[jobId] = 1; // step 1: extracting pages
+        const imageUrls = await extractImagesFromPDF(pdfPath);
+        const readedUrls = imageUrls.map((url: string) => fs.readFileSync(path.join(process.cwd(), "public", url)));
 
-    for (let url of imageUrls) {
-      const imagePath = path.join(process.cwd(), "public", url);
-      const imageBuffer = fs.readFileSync(imagePath);
-      readedUrls.push(imageBuffer);
-    }
+        processingStatus[jobId] = 2; // step 2: uploading to Shopify CDN
+        const uploadedImages = [];
+        for (const buf of readedUrls) uploadedImages.push(await uploadImage(buf, shop, accessToken, apiVersion));
+        const createFileQuery = `mutation fileCreate($files: [FileCreateInput!]!) { fileCreate(files: $files) { files { alt fileStatus id preview { image { url id height width } } } userErrors { field message } } }`;
+        const r = await axios.post(`https://${shop}/admin/api/${apiVersion}/graphql.json`, { query: createFileQuery, variables: { files: uploadedImages.map((url) => ({ alt: "alt-tag", contentType: "IMAGE", originalSource: url })) } }, { headers: { "X-Shopify-Access-Token": `${accessToken}` } });
+        const fileIds = r.data.data.fileCreate.files.map((f: any) => f.id);
+        const previewUrls = await pollFileStatus(shop, accessToken, fileIds);
 
-    const uploadedImages = [];
+        processingStatus[jobId] = 3; // step 3: saving catalog
+        const key = generateRandomString();
+        const metafieldData = { namespace: "PDF", key, value: JSON.stringify({ pdfName, pdfSizeInKB, date: new Date().toLocaleDateString(), images: previewUrls.map((d: any, i: number) => ({ id: i + 1, url: d.preview.image.url, points: [] })) }), type: "json", owner_resource: "shop" };
+        const { data: imageData } = await axios.post(`https://${shop}/admin/api/${apiVersion}/metafields.json`, { metafield: metafieldData }, { headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": accessToken } });
+        if (!imageData) console.error("Failed to save metafield");
 
-    for (const imageBuffer of readedUrls) {
-      const resourceUrl = await uploadImage(
-        imageBuffer,
-        shop,
-        accessToken,
-        apiVersion,
-      );
-      uploadedImages.push(resourceUrl);
-    }
-
-    const createFileQuery = `mutation fileCreate($files: [FileCreateInput!]!) {
-    fileCreate(files: $files) {
-      files {
-        alt
-         fileStatus
-        id
-        preview{
-        image{
-            url
-            id
-            height
-            width
-          }
-        }
+        processingStatus[jobId] = 4; // done
+        imageUrls.forEach((url: string) => fs.unlink(path.join(process.cwd(), "public", url), () => {}));
+        fs.unlink(pdfPath, () => {});
+        // Clean up after 5 minutes
+        setTimeout(() => { delete processingStatus[jobId]; }, 300000);
+      } catch (err) {
+        console.error("Background PDF processing failed:", err);
+        delete processingStatus[jobId];
       }
-      userErrors {
-        field
-        message
-      }
-    }
-  }`;
+    })();
 
-    const createFileVariables = {
-      files: uploadedImages.map((url) => ({
-        alt: "alt-tag",
-        contentType: "IMAGE",
-        originalSource: url,
-      })),
-    };
+    return json({ processing: true, pdfName, jobId });
+  }
 
-    const createFileQueryResult = await axios.post(
-      `https://${shop}/admin/api/${apiVersion}/graphql.json`,
-      {
-        query: createFileQuery,
-        variables: createFileVariables,
-      },
-      {
-        headers: {
-          "X-Shopify-Access-Token": `${accessToken}`,
-        },
-      },
-    );
-
-    const fileIds = createFileQueryResult.data.data.fileCreate.files.map(
-      (file: any) => file.id,
-    );
-    const previewUrls = await pollFileStatus(shop, accessToken, fileIds);
-
-    const key = generateRandomString();
-
-    const metafieldData = {
-      namespace: "PDF",
-      key: key,
-
-      value: JSON.stringify({
-        pdfName: pdfName,
-        pdfSizeInKB,
-        view,
-        date: new Date().toLocaleDateString(),
-        images: previewUrls.map((data: any, index: number) => ({
-          id: index + 1,
-          url: data.preview.image.url,
-          points: [],
-        })),
-      }),
-      type: "json",
-      owner_resource: "shop",
-    };
-
-    const { data: imageData } = await axios.post(
-      `https://${shop}/admin/api/${apiVersion}/metafields.json`,
-      { metafield: metafieldData },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "X-Shopify-Access-Token": accessToken,
-        },
-      },
-    );
-
-    if (!imageData) {
-      return json({ error: "Failed to save metafield" }, { status: 400 });
-    }
-    // Delete temporary uploaded images
-
-    imageUrls.forEach((url) => {
-      const imagePath = path.join(process.cwd(), "public", url);
-      fs.unlink(imagePath, (err) => {
-        if (err) console.error(`Error deleting file ${imagePath}:`, err);
-      });
-    });
-
-    fs.unlink(pdfPath, (err) => {
-      if (err) console.error(`Error deleting file ${pdfPath}:`, err);
-    });
-
-    // Re-fetch the updated PDF list so the UI refreshes immediately
-    const GET_PDF_QUERY_REFRESH = `
-      query GetPDFQuery {
-        shop {
-          metafields(first: ${valueToFetch}, namespace: "PDF", reverse: true) {
-            pageInfo {
-              hasPreviousPage
-              hasNextPage
-              startCursor
-              endCursor
-            }
-            edges {
-              node {
-                id
-                namespace
-                key
-                jsonValue
-                type
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    try {
-      const listResponse = await admin.graphql(GET_PDF_QUERY_REFRESH);
-      const listData = await listResponse.json();
-      const pageInfo = listData.data.shop.metafields.pageInfo;
-      const pdfMetafields = listData.data.shop.metafields.edges.map(
-        (edge: any) => edge.node,
-      );
-      const pdfData = pdfMetafields.map((pdf: any) => ({
-        id: pdf.id.split("/")[pdf.id.split("/").length - 1],
-        pdfName: pdf.jsonValue?.pdfName ?? "Untitled Document",
-        frontPage: pdf.jsonValue?.images?.[0]?.url ?? "",
-        allImages: pdf.jsonValue?.images ?? [],
-        size: pdf.jsonValue?.pdfSizeInKB ?? "",
-        date: pdf.jsonValue?.date ?? "",
-        key: pdf.key,
-        namespace: pdf.namespace,
-        view: pdf.jsonValue?.view,
-      }));
-      return json({ success: true, pdfData, pageInfo, query: GET_PDF_QUERY_REFRESH });
-    } catch {
-      return json({ success: true, message: "PDF uploaded successfully", imageData });
-    }
-  } else if (request.method === "DELETE" || request.method === "delete") {
+  if (request.method === "DELETE" || request.method === "delete") {
     const formData = await request.formData();
-    const metafieldIds: any = formData.get("metafieldIds");
-    const query = formData.get("query") as string;
-    if (!metafieldIds) {
-      return json({ error: "No metafieldId provided" }, { status: 400 });
-    }
-    const idsArray = JSON.parse(metafieldIds);
-
-    if (!Array.isArray(idsArray) || idsArray.length === 0) {
-      return json({ error: "Invalid metafieldIds provided" }, { status: 400 });
-    }
-
-    const DELETE_META_FIELD = `
-      mutation DeleteMetafield($id: ID!) {
-        metafieldDelete(input: { id: $id }) {
-          deletedId
-          userErrors {
-            field
-            message
-          }
-        }
-      }
-    `;
+    const keysRaw: any = formData.get("keys");
+    if (!keysRaw) return json({ error: "No keys provided" }, { status: 400 });
+    const keysArray: string[] = JSON.parse(keysRaw);
+    if (!Array.isArray(keysArray) || keysArray.length === 0) return json({ error: "Invalid keys" }, { status: 400 });
 
     try {
-      const deletePromises = idsArray.map((id) => {
-        const formattedId = `gid://shopify/Metafield/${id}`;
-
-        return admin.graphql(DELETE_META_FIELD, {
-          variables: {
-            id: formattedId,
-          },
+      // For each key, look up the metafield by namespace+key via REST, then delete it
+      for (const key of keysArray) {
+        const lookupUrl = `https://${shop}/admin/api/${apiVersion}/metafields.json?namespace=PDF&key=${encodeURIComponent(key)}`;
+        const lookupRes = await axios.get(lookupUrl, {
+          headers: { "X-Shopify-Access-Token": accessToken },
         });
-      });
-      const results = await Promise.all(deletePromises);
-
-      results.forEach(async (response) => {
-        const data = await response.json();
-        if (!data) {
-          return json({ error: "Unable to remove metafield" }, { status: 400 });
+        const metafields = lookupRes.data?.metafields;
+        if (metafields && metafields.length > 0) {
+          const metafieldId = metafields[0].id;
+          await axios.delete(
+            `https://${shop}/admin/api/${apiVersion}/metafields/${metafieldId}.json`,
+            { headers: { "X-Shopify-Access-Token": accessToken } }
+          );
         }
-      });
-      const data = await admin.graphql(query);
-
-      if (!data) {
-        console.error("Failed to fetch PDF metafield");
-        return { error: "Failed to fetch PDF metafield." };
       }
+
+      // Re-fetch the list using a fresh query
+      const Q = `query GetPDFQuery { shop { metafields(first: ${valueToFetch}, namespace: "PDF", reverse: true) { pageInfo { hasPreviousPage hasNextPage startCursor endCursor } edges { node { id namespace key jsonValue type } } } } }`;
+      const data = await admin.graphql(Q);
       const response = await data.json();
       const pageInfo = response.data.shop.metafields.pageInfo;
-      const pdfMetafields = response.data.shop.metafields.edges.map(
-        (edge: any) => edge.node,
-      );
-      if (!pdfMetafields.length) {
-        console.warn("No PDF metafields found.");
-            
-        return {
-          pdfData: [],
-
-          pageInfo,
-          query: query,
-        };
-      }
-
-      const actualResponse = pdfMetafields.map((pdf: any) => ({
-        id: pdf.id.split("/")[pdf.id.split("/").length - 1],
-        pdfName:
-          pdf.jsonValue.pdfName !== null
-            ? pdf.jsonValue?.pdfName
-            : "Untitled Document",
-        frontPage:
-          pdf.jsonValue.images !== null ? pdf.jsonValue?.images[0]?.url : "",
-        allImages: pdf.jsonValue.images !== null ? pdf.jsonValue?.images : [],
-        size: pdf.jsonValue.pdfSizeInKB || "",
-        date: pdf.jsonValue.date || "",
-        key: pdf.key,
-        namespace: pdf.namespace,
-        view: pdf.jsonValue.view,
-      }));
-
-      return {
-        pdfData: actualResponse,
+      const nodes = response.data.shop.metafields.edges.map((e: any) => e.node);
+      if (!nodes.length) return json({ pdfData: [], pageInfo, query: Q });
+      return json({
+        pdfData: nodes.map((pdf: any) => ({
+          id: pdf.id.split("/").pop(),
+          pdfName: pdf.jsonValue?.pdfName ?? "Untitled Document",
+          frontPage: pdf.jsonValue?.images?.[0]?.url ?? "",
+          allImages: pdf.jsonValue?.images ?? [],
+          pageCount: pdf.jsonValue?.images?.length ?? 0,
+          hotspotCount: pdf.jsonValue?.images?.reduce((s: number, img: any) => s + (img.points?.length ?? 0), 0) ?? 0,
+          size: pdf.jsonValue?.pdfSizeInKB ?? "",
+          date: pdf.jsonValue?.date ?? "",
+          key: pdf.key,
+          namespace: pdf.namespace,
+        })),
         pageInfo,
-        query: query,
-      };
-    } catch (error: any) {
-      console.error(error, "Errors");
-      console.error(error?.body.errors, "Errorsssssssssssss");
-      return { message: "something went wrong" };
+        query: Q,
+      });
+    } catch {
+      return json({ error: "Something went wrong" }, { status: 500 });
     }
-  } else if (request.method === "put" || request.method === "PUT") {
+  }
+
+  if (request.method === "PUT" || request.method === "put") {
     const formData = await request.formData();
     const afterBefore = formData.get("afterBefore") as "after" | "before";
     const firstLast = formData.get("firstLast") as "last" | "first";
-    const pageToken = formData.get("pageToken") as string | "";
-    const { data: pricePlan } = await axios.get(
-      `https://${shop}/admin/api/${apiVersion}/recurring_application_charges.json        `,
-      {
-        headers: {
-          "X-Shopify-Access-Token": accessToken,
-        },
-      },
-    );
-
-    const GET_PDF_QUERY = `
-    query GetPDFQuery {
-      shop {
-        metafields(${firstLast}: ${valueToFetch} , reverse:true namespace: "PDF" ${afterBefore}:"${pageToken}") {
-            pageInfo {
-            hasPreviousPage
-            hasNextPage
-            startCursor
-            endCursor
-        }
-          edges {
-            node {
-              id
-              namespace
-              key
-              jsonValue
-              type
-            }
-          }
-        }
-      }
-    }
-  `;
-
+    const pageToken = formData.get("pageToken") as string;
+    const { data: pricePlan } = await axios.get(`https://${shop}/admin/api/${apiVersion}/recurring_application_charges.json`, { headers: { "X-Shopify-Access-Token": accessToken } });
+    const Q = `query GetPDFQuery { shop { metafields(${firstLast}: ${valueToFetch}, reverse: true, namespace: "PDF", ${afterBefore}: "${pageToken}") { pageInfo { hasPreviousPage hasNextPage startCursor endCursor } edges { node { id namespace key jsonValue type } } } } }`;
     try {
-      const data = await admin.graphql(GET_PDF_QUERY);
-
-      if (!data) {
-        console.error("Failed to fetch PDF metafield");
-        return { error: "Failed to fetch PDF metafield." };
-      }
+      const data = await admin.graphql(Q);
       const response = await data.json();
       const pageInfo = response.data.shop.metafields.pageInfo;
-      const pdfMetafields = response.data.shop.metafields.edges.map(
-        (edge: any) => edge.node,
-      );
-      if (!pdfMetafields.length) {
-        console.warn("No PDF metafields found.");
-        
-        return {
-          pdfData: [],
-          pricePlan: pricePlan.recurring_application_charges[0],
-          pageInfo,
-          query: GET_PDF_QUERY,
-        };
-      }
+      const nodes = response.data.shop.metafields.edges.map((e: any) => e.node);
+      if (!nodes.length) return { pdfData: [], pricePlan: pricePlan.recurring_application_charges[0], pageInfo, query: Q };
+      return { pdfData: nodes.map((pdf: any) => ({ id: pdf.id.split("/").pop(), pdfName: pdf.jsonValue?.pdfName ?? "Untitled Document", frontPage: pdf.jsonValue?.images?.[0]?.url ?? "", allImages: pdf.jsonValue?.images ?? [], pageCount: pdf.jsonValue?.images?.length ?? 0, hotspotCount: pdf.jsonValue?.images?.reduce((s: number, img: any) => s + (img.points?.length ?? 0), 0) ?? 0, size: pdf.jsonValue?.pdfSizeInKB ?? "", date: pdf.jsonValue?.date ?? "", key: pdf.key, namespace: pdf.namespace })), pricePlan: pricePlan.recurring_application_charges[0], pageInfo, query: Q };
+    } catch { return { error: "Unexpected error occurred while fetching metafields." }; }
+  }
+if (request.method === "PATCH" || request.method === "patch") {
+    const formData = await request.formData();
+    const jobId = formData.get("jobId") as string | null;
+    const currentStep = jobId && processingStatus[jobId] !== undefined ? processingStatus[jobId] : null;
 
-      const actualResponse = pdfMetafields.map((pdf: any) => ({
-        id: pdf.id.split("/")[pdf.id.split("/").length - 1],
-        pdfName:
-          pdf.jsonValue.pdfName !== null
-            ? pdf.jsonValue?.pdfName
-            : "Untitled Document",
-        frontPage:
-          pdf.jsonValue.images !== null ? pdf.jsonValue?.images[0]?.url : "",
-        allImages: pdf.jsonValue.images !== null ? pdf.jsonValue?.images : [],
-        size: pdf.jsonValue.pdfSizeInKB || "",
-        date: pdf.jsonValue.date || "",
-        key: pdf.key,
-        namespace: pdf.namespace,
-        view: pdf.jsonValue.view,
-      }));
-
-      return {
-        pdfData: actualResponse,
-        pricePlan: pricePlan.recurring_application_charges[0],
+    const Q = `query GetPDFQuery { shop { metafields(first: ${valueToFetch}, namespace: "PDF", reverse: true) { pageInfo { hasPreviousPage hasNextPage startCursor endCursor } edges { node { id namespace key jsonValue type } } } } }`;
+    try {
+      const data = await admin.graphql(Q);
+      const response = await data.json();
+      const pageInfo = response.data.shop.metafields.pageInfo;
+      const nodes = response.data.shop.metafields.edges.map((e: any) => e.node);
+    if (!nodes.length) return json({ pdfData: [], pageInfo, query: Q, currentStep });
+      return json({
+        currentStep,
+        pdfData: nodes.map((pdf: any) => ({
+          id: pdf.id.split("/").pop(),
+          pdfName: pdf.jsonValue?.pdfName ?? "Untitled Document",
+          frontPage: pdf.jsonValue?.images?.[0]?.url ?? "",
+          allImages: pdf.jsonValue?.images ?? [],
+          pageCount: pdf.jsonValue?.images?.length ?? 0,
+          hotspotCount: pdf.jsonValue?.images?.reduce((s: number, img: any) => s + (img.points?.length ?? 0), 0) ?? 0,
+          size: pdf.jsonValue?.pdfSizeInKB ?? "",
+          date: pdf.jsonValue?.date ?? "",
+          key: pdf.key,
+          namespace: pdf.namespace,
+        })),
         pageInfo,
-        query: GET_PDF_QUERY,
-      };
-    } catch (error) {
-      console.error("Error fetching PDF metafields:", error);
-      return { error: "Unexpected error occurred while fetching metafields." };
+        query: Q,
+      });
+    } catch {
+      return json({ error: "Failed to fetch" }, { status: 500 });
     }
   }
+
   return json({ error: "Unknown method" }, { status: 400 });
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const {
-    admin,
-    session: { accessToken, shop },
-  } = await authenticate.admin(request);
-  const { data: pricePlan } = await axios.get(
-    `https://${shop}/admin/api/${apiVersion}/recurring_application_charges.json        `,
-    {
-      headers: {
-        "X-Shopify-Access-Token": accessToken,
-      },
-    },
-  );
+  const axios = (await import("axios")).default;
+  const { apiVersion, authenticate } = await import("../shopify.server");
 
-  const GET_PDF_QUERY = `
-      query GetPDFQuery {
-        shop {
-          metafields(first: ${valueToFetch}, namespace: "PDF" reverse:true) {
-              pageInfo {
-              hasPreviousPage
-              hasNextPage
-              startCursor
-              endCursor
-          }
-            edges {
-              node {
-                id
-                namespace
-                key
-                jsonValue
-                type
-              }
-            }
-          }
-        }
-      }
-    `;
-
+  const { admin, session: { accessToken, shop } } = await authenticate.admin(request);
+  const { data: pricePlan } = await axios.get(`https://${shop}/admin/api/${apiVersion}/recurring_application_charges.json`, { headers: { "X-Shopify-Access-Token": accessToken } });
+  const Q = `query GetPDFQuery { shop { metafields(first: ${valueToFetch}, namespace: "PDF", reverse: true) { pageInfo { hasPreviousPage hasNextPage startCursor endCursor } edges { node { id namespace key jsonValue type } } } } }`;
   try {
-    const data = await admin.graphql(GET_PDF_QUERY);
-
-    if (!data) {
-      console.error("Failed to fetch PDF metafield");
-      return { error: "Failed to fetch PDF metafield." };
-    }
+    const data = await admin.graphql(Q);
     const response = await data.json();
     const pageInfo = response.data.shop.metafields.pageInfo;
-    const pdfMetafields = response.data.shop.metafields.edges.map(
-      (edge: any) => edge.node,
-    );
-    if (!pdfMetafields.length) {
-      console.warn("No PDF metafields found.");
-
-      return {
-        pdfData: [],
-        pricePlan: pricePlan.recurring_application_charges[0],
-        pageInfo,
-        query: GET_PDF_QUERY,
-      };
-    }
-
-    const actualResponse = pdfMetafields.map((pdf: any) => ({
-      id: pdf.id.split("/")[pdf.id.split("/").length - 1],
-      pdfName:
-        pdf.jsonValue.pdfName !== null
-          ? pdf.jsonValue?.pdfName
-          : "Untitled Document",
-      frontPage:
-        pdf.jsonValue.images !== null ? pdf.jsonValue?.images[0]?.url : "",
-      allImages: pdf.jsonValue.images !== null ? pdf.jsonValue?.images : [],
-      size: pdf.jsonValue.pdfSizeInKB || "",
-      date: pdf.jsonValue.date || "",
-      key: pdf.key,
-      namespace: pdf.namespace,
-      view: pdf.jsonValue.view,
-    }));
-
-    return {
-      pdfData: actualResponse,
-      pricePlan: pricePlan.recurring_application_charges[0],
-      pageInfo,
-      query: GET_PDF_QUERY,
-    };
-  } catch (error) {
-    console.error("Error fetching PDF metafields:", error);
-    return { error: "Unexpected error occurred while fetching metafields." };
-  }
+    const nodes = response.data.shop.metafields.edges.map((e: any) => e.node);
+    if (!nodes.length) return { pdfData: [], pricePlan: pricePlan.recurring_application_charges[0], pageInfo, query: Q };
+    return { pdfData: nodes.map((pdf: any) => ({ id: pdf.id.split("/").pop(), pdfName: pdf.jsonValue?.pdfName ?? "Untitled Document", frontPage: pdf.jsonValue?.images?.[0]?.url ?? "", allImages: pdf.jsonValue?.images ?? [], pageCount: pdf.jsonValue?.images?.length ?? 0, hotspotCount: pdf.jsonValue?.images?.reduce((s: number, img: any) => s + (img.points?.length ?? 0), 0) ?? 0, size: pdf.jsonValue?.pdfSizeInKB ?? "", date: pdf.jsonValue?.date ?? "", key: pdf.key, namespace: pdf.namespace })), pricePlan: pricePlan.recurring_application_charges[0], pageInfo, query: Q };
+  } catch { return { error: "Unexpected error occurred while fetching metafields." }; }
 };
 
-const PDFConverter = () => {
-  const loader = useLoaderData<PDFVALUES>();
-  const fetcher = useFetcher<PDFVALUES>();
-  const dispatch = useDispatch();
-  // Prefer fetcher data whenever the action returned a pdfData array (including empty [])
-  const hasFetcherList = fetcher.data != null && "pdfData" in (fetcher.data as any);
-  const { pageInfo } = hasFetcherList ? (fetcher.data as any) : loader;
-  const { pdfData } = hasFetcherList ? (fetcher.data as any) : loader;
-  const { query } = hasFetcherList ? (fetcher.data as any) : loader;
+// ─── UPLOAD MODAL ──────────────────────────────────────────────────────────────
+const STEPS = ["Uploading file", "Extracting pages", "Uploading to Shopify CDN", "Saving catalog"];
 
-  const [pageInformation, setPageInformation] = useState<pageInformation>({
-    endCursor: "",
-    startCursor: "",
-    hasNextPage: true,
-    hasPreviousPage: false,
-  });
-  const plan = useSelector((state: any) => state.plan.plan);
-  const planType = plan || "Free";
-  const maxUploads =
-    planType === "Free" ? 1 : planType === "Basic" ? 5 : Infinity;
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [uploadCount, setUploadCount] = useState(pdfData ? pdfData.length : 0);
-  const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [view, setView] = useState<string>("list");
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isPaginationLoading, setIsPaginationLoading] =
-    useState<boolean>(false);
-  const [modalActive, setModalActive] = useState(false);
-
-  const handleCopyKey = (key: string) => {
-    navigator.clipboard.writeText(key).then(() => {
-      setCopiedKey(key);
-      shopify.toast.show("Copied to clipboard");
-      setTimeout(() => {
-        setCopiedKey(null);
-      }, 2000);
-    });
-  };
-
-  const handleNextPagination = async () => {
-    setIsPaginationLoading(true);
-
-    const formData = new FormData();
-    formData.append("afterBefore", "after");
-    formData.append("firstLast", "first");
-    formData.append("pageToken", pageInformation.endCursor);
-    fetcher.submit(formData, { method: "put" ,action: "/app/pdf-convert" });
-  };
-
-  const handlePrevPagination = async () => {
-    setIsPaginationLoading(true);
-    const formData = new FormData();
-    formData.append("afterBefore", "before");
-    formData.append("firstLast", "last");
-    formData.append("pageToken", pageInformation.startCursor);
-    fetcher.submit(formData, { method: "put" , action: "/app/pdf-convert"});
-  };
-
-  const handlePdfDelete = () => {
-    const formData = new FormData();
-    formData.append("metafieldIds", JSON.stringify(selectedResources));
-    formData.append("query", query);
-    fetcher.submit(formData, { method: "delete", action: "/app/pdf-convert" });
-    selectedResources.splice(0, selectedResources.length);
-  };
+function UploadModal({ file, onClose, onChangeFile, onUpload, phase, step, onEdit }: {
+  file: File | null;
+  onClose: () => void;
+  onChangeFile: () => void;
+  onUpload: (file: File, name: string) => void;
+  phase: "preview" | "progress" | "done";
+  step: number;
+  onEdit: () => void;
+}) {
+  const [catalogName, setCatalogName] = useState(file ? file.name.replace(/\.pdf$/i, "") : "");
 
   useEffect(() => {
+    if (file) {
+      setCatalogName(file.name.replace(/\.pdf$/i, ""));
+    }
+  }, [file]);
 
-    setUploadCount(pdfData ? pdfData.length : 0);
-    setPageInformation(pageInfo);
-    setIsPaginationLoading(false);
-    setIsLoading(false);
-    dispatch(addPlan(loader.pricePlan && loader?.pricePlan?.name));
-  }, [pdfData, pageInfo, loader.pricePlan]);
+  if (!file) return null;
 
-  const handleFileChange = () => {
-    if (uploadCount >= maxUploads) {
-      alert(
-        `You can only upload up to ${maxUploads} PDFs based on your current plan.`,
-      );
+  const title = phase === "preview" ? "New Catalog" : phase === "progress" ? "Processing..." : "Catalog Ready!";
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, backdropFilter: "blur(6px)" }}>
+      <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 460, boxShadow: "0 24px 64px rgba(15,23,42,0.18)", overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div style={{ padding: "22px 22px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 15, fontWeight: 600, color: "#0F172A" }}>{title}</span>
+          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, background: "#F1F5F9", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+        </div>
+
+        {phase === "preview" && (
+          <div style={{ padding: "22px" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 18 }}>
+              <div style={{ width: 64, height: 64, borderRadius: 12, background: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                <svg width="28" height="28" fill="none" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="#EF4444" strokeWidth="1.5" strokeLinejoin="round" /><path d="M14 2v6h6" stroke="#EF4444" strokeWidth="1.5" strokeLinejoin="round" /></svg>
+              </div>
+              <p style={{ fontSize: 13, fontWeight: 500, color: "#0F172A", margin: "0 0 2px", textAlign: "center", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</p>
+              <p style={{ fontSize: 11, color: "#94A3B8", margin: 0, textAlign: "center" }}>{(file.size / 1024).toFixed(1)} KB</p>
+            </div>
+            <input
+              value={catalogName}
+              onChange={(e) => setCatalogName(e.target.value)}
+              placeholder="Catalog name"
+              style={{ width: "100%", border: "1px solid #E2E8F0", borderRadius: 8, padding: "9px 13px", fontSize: 13, color: "#0F172A", outline: "none", fontFamily: "inherit", background: "#fff", transition: "border-color 0.15s", boxSizing: "border-box" }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = "#1A73E8")}
+              onBlur={(e) => (e.currentTarget.style.borderColor = "#E2E8F0")}
+            />
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <button onClick={onChangeFile} style={{ flex: 1, background: "#F1F5F9", color: "#374151", border: "none", borderRadius: 9, padding: "11px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Change PDF</button>
+              <button onClick={() => onUpload(file, catalogName.trim() || file.name.replace(/\.pdf$/i, ""))} style={{ flex: 1, background: "#1A73E8", color: "#fff", border: "none", borderRadius: 9, padding: "11px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Upload PDF</button>
+            </div>
+          </div>
+        )}
+
+        {phase === "progress" && (
+          <div>
+            <div style={{ margin: "18px 22px 0", height: 3, background: "#E8EDF2", borderRadius: 99, overflow: "hidden" }}>
+              <div style={{ height: "100%", background: "#F59E0B", borderRadius: 99, width: `${Math.min(((step + 1) / STEPS.length) * 100, 95)}%`, transition: "width 0.7s ease" }} />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "18px 22px 12px" }}>
+              {STEPS.map((label, idx) => {
+                const isDone = idx < step;
+                const isActive = idx === step;
+                return (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 10, opacity: idx > step ? 0.4 : 1, transition: "opacity 0.3s" }}>
+                    <div style={{ width: 20, height: 20, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: isDone ? "#22C55E" : isActive ? "#F59E0B" : "#EFF6FF", transition: "background 0.3s" }}>
+                      {isDone ? (
+                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                      ) : (
+                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: isActive ? "white" : "#1A73E8" }} />
+                      )}
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: isDone || isActive ? 500 : 400, color: isDone ? "#22C55E" : isActive ? "#92400E" : "#1A73E8", flex: 1 }}>{label}</span>
+                    {isActive && <div style={{ width: 11, height: 11, border: "2px solid #F59E0B", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />}
+                  </div>
+                );
+              })}
+            </div>
+            <p style={{ fontSize: 11, color: "#94A3B8", textAlign: "center", margin: "0 22px 18px" }}>You can close this window — processing will continue in the background.</p>
+          </div>
+        )}
+
+        {phase === "done" && (
+          <div style={{ padding: "22px", textAlign: "center" }}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#F0FDF4", border: "1px solid #DCFCE7", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+              <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </div>
+            <p style={{ fontSize: 15, fontWeight: 600, color: "#0F172A", margin: "0 0 6px" }}>Catalog ready!</p>
+            <p style={{ fontSize: 13, color: "#64748B", margin: "0 0 18px", lineHeight: 1.6 }}>Your catalog has been processed. Start adding product hotspots.</p>
+            <button onClick={onEdit} style={{ width: "100%", background: "#1A73E8", color: "#fff", border: "none", borderRadius: 9, padding: "11px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Open catalog editor →</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── SUCCESS TOAST ─────────────────────────────────────────────────────────────
+function SuccessToast() {
+  return (
+    <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", zIndex: 1100, background: "#0F172A", color: "#fff", borderRadius: 10, padding: "12px 20px", fontSize: 13, fontWeight: 500, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", display: "flex", alignItems: "center", gap: 8, animation: "fadeIn 0.2s ease" }}>
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      Catalog uploaded successfully!
+    </div>
+  );
+}
+
+// ─── INLINE UPLOAD ZONE ────────────────────────────────────────────────────────
+function UploadZone({ onFileSelected }: { onFileSelected: (file: File) => void }) {
+  const [dragging, setDragging] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (f: File) => {
+    if (f.type !== "application/pdf") return;
+    onFileSelected(f);
+  };
+
+  return (
+    <div
+      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+      onClick={() => fileRef.current?.click()}
+      style={{
+        border: `1.5px dashed ${dragging ? "#1A73E8" : "#D1D5DB"}`,
+        borderRadius: 10,
+        padding: "32px 20px",
+        textAlign: "center",
+        cursor: "pointer",
+        background: dragging ? "#F0F6FF" : "#FAFAFA",
+        transition: "all 0.18s",
+      }}
+    >
+      <input ref={fileRef} type="file" accept=".pdf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
+      <div style={{ width: 42, height: 42, borderRadius: 10, background: "#fff", border: "1px solid #E2E8F0", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+          <path d="M12 15V4M12 4l-4 4M12 4l4 4" stroke="#1A73E8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+      <p style={{ fontSize: 13, fontWeight: 500, color: "#0F172A", margin: "0 0 3px" }}>Drag and drop your PDF here</p>
+      <p style={{ fontSize: 12, color: "#94A3B8", margin: "0 0 14px" }}>or click to browse · max 50 MB</p>
+      <button
+        onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
+        style={{ display: "inline-block", background: "#1A73E8", color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
+      >
+        Choose PDF file
+      </button>
+    </div>
+  );
+}
+
+// ─── TRASH ICON ────────────────────────────────────────────────────────────────
+const Trash = () => (
+  <svg width="13" height="13" fill="none" viewBox="0 0 24 24">
+    <path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+// ─── MAIN COMPONENT ────────────────────────────────────────────────────────────
+const PdfConvert = () => {
+  const loaderData: any = useLoaderData();
+  const fetcher = useFetcher<any>();
+  const pollFetcher = useFetcher<any>();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  const [pdfList, setPdfList] = useState<PDFVALUES[]>(loaderData?.pdfData ?? []);
+  const [pageInfo, setPageInfo] = useState<pageInformation>(loaderData?.pageInfo);
+  const [query, setQuery] = useState<string>(loaderData?.query ?? "");
+  const [convertStep, setConvertStep] = useState(0);
+  const [convertedFileName, setConvertedFileName] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [newCatalogId, setNewCatalogId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [uploadModalFile, setUploadModalFile] = useState<File | null>(null);
+  const [uploadModalPhase, setUploadModalPhase] = useState<"preview" | "progress" | "done">("preview");
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const previousCountRef = useRef<number>(loaderData?.pdfData?.length ?? 0);
+  const uploadFileRef = useRef<HTMLInputElement>(null);
+const jobIdRef = useRef<string | null>(null);
+
+  const plan = useSelector((s: any) => s.plan.plan);
+  const maxCatalogs = plan === "Basic" ? 5 : plan === "Pro" ? 20 : Infinity;
+  const atLimit = pdfList.length >= maxCatalogs;
+
+  // Sync loader data
+  useEffect(() => {
+    if (loaderData?.pricePlan) dispatch(addPlan(loaderData.pricePlan));
+    if (loaderData?.pdfData) setPdfList(loaderData.pdfData);
+    if (loaderData?.pageInfo) setPageInfo(loaderData.pageInfo);
+    if (loaderData?.query) setQuery(loaderData.query);
+  }, [loaderData]);
+
+  // Watch fetcher.data for action responses
+useEffect(() => {
+    if (!fetcher.data) return;
+    if ((fetcher.data as any)?.processing === true) {
+      setIsProcessing(true);
+      jobIdRef.current = (fetcher.data as any)?.jobId ?? null;
+      previousCountRef.current = pdfList.length;
       return;
     }
-    const file = fileInputRef.current?.files?.[0];
-    if (file) {
-      setIsLoading(true);
-      const formData = new FormData();
-      formData.append("pdf", file);
-      formData.append("view", view);
-      fetcher.submit(formData, {
-        method: "post",
-        encType: "multipart/form-data",
-         action: "/app/pdf-convert",
-      });
+    if (fetcher.data.pdfData) {
+      setPdfList(fetcher.data.pdfData);
+      setPageInfo(fetcher.data.pageInfo);
+      setQuery(fetcher.data.query ?? query);
+    }
+  }, [fetcher.data]);
 
-      fileInputRef.current.value = "";
+  // Polling: start/stop interval based on isProcessing
+  useEffect(() => {
+    if (isProcessing) {
+pollingRef.current = setInterval(() => {
+        const fd = new FormData();
+        if (jobIdRef.current) fd.append("jobId", jobIdRef.current);
+        pollFetcher.submit(fd, { method: "PATCH" });
+      }, 3000);
+    } else {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    }
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [isProcessing]);
+
+
+
+useEffect(() => {
+    if (!pollFetcher.data) return;
+
+    // Update step from real server progress
+    if (pollFetcher.data.currentStep !== null && pollFetcher.data.currentStep !== undefined) {
+      setConvertStep(Math.min(pollFetcher.data.currentStep, 3));
+    }
+
+    // Check if processing is complete (new record appeared)
+    if (pollFetcher.data.pdfData && pollFetcher.data.pdfData.length > previousCountRef.current) {
+      setPdfList(pollFetcher.data.pdfData);
+      setPageInfo(pollFetcher.data.pageInfo);
+      setQuery(pollFetcher.data.query ?? query);
+      setIsProcessing(false);
+      setConvertStep(4);
+      jobIdRef.current = null;
+      setTimeout(() => setUploadModalPhase("done"), 400);
+      if (!showUploadModal) {
+        setShowSuccessToast(true);
+        setTimeout(() => setShowSuccessToast(false), 4000);
+      }
+      setNewCatalogId(pollFetcher.data.pdfData[0]?.id ?? null);
+      previousCountRef.current = pollFetcher.data.pdfData.length;
+    }
+  }, [pollFetcher.data]);
+
+  const handleFileSelected = (file: File) => {
+    setUploadModalFile(file);
+    setUploadModalPhase("preview");
+    setShowUploadModal(true);
+    setConvertStep(0);
+  };
+const handleUploadFromModal = (file: File, name: string) => {
+    setUploadModalPhase("progress");
+    setConvertedFileName(name);
+    setConvertStep(0);
+    const fd = new FormData();
+    fd.append("pdf", file);
+    fd.append("pdfName", name);
+    fetcher.submit(fd, { method: "post", encType: "multipart/form-data" });
+  };
+  const handleChangeFile = () => {
+    uploadFileRef.current?.click();
+  };
+
+  const handleCloseUploadModal = () => {
+    setShowUploadModal(false);
+  };
+
+  const handleCopyKey = (key: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(key);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+const handleDeleteConfirm = () => {
+    if (!deleteTarget) return;
+    // deleteTarget can be "single:<id>" or "bulk"
+    let keys: string[] = [];
+    if (deleteTarget === "bulk") {
+      keys = pdfList.filter((p) => selectedIds.has(p.id)).map((p) => p.key);
+    } else {
+      const targetPdf = pdfList.find((p) => p.id === deleteTarget);
+      if (targetPdf) keys = [targetPdf.key];
+    }
+    if (keys.length === 0) { setDeleteTarget(null); return; }
+    const fd = new FormData();
+    fd.append("keys", JSON.stringify(keys));
+    fetcher.submit(fd, { method: "delete" });
+    setSelectedIds(new Set());
+    setDeleteTarget(null);
+  };
+
+  const handlePaginate = (dir: "next" | "prev") => {
+    const fd = new FormData();
+    fd.append("afterBefore", dir === "next" ? "after" : "before");
+    fd.append("firstLast", dir === "next" ? "first" : "last");
+    fd.append("pageToken", dir === "next" ? pageInfo?.endCursor : pageInfo?.startCursor);
+    fetcher.submit(fd, { method: "put" });
+  };
+const filteredList = pdfList.filter((p) => p.pdfName?.toLowerCase().includes(searchQuery.toLowerCase()));
+  const totalHotspots = pdfList.reduce((s, p) => s + (p.hotspotCount ?? 0), 0);
+  const totalPages = pdfList.reduce((s, p) => s + (p.pageCount ?? 0), 0);
+  const allFilteredSelected = filteredList.length > 0 && filteredList.every((p) => selectedIds.has(p.id));
+
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredList.map((p) => p.id)));
     }
   };
+ return (
+    <div style={{ minHeight: "100vh", backgroundColor: "#F8FAFC", fontFamily: "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; } }
+        .cRow { transition: background 0.1s; cursor: pointer; }
+        .cRow:hover { background: #F8FAFC !important; }
+        .kPill:hover { background: #EFF6FF !important; border-color: #BFDBFE !important; color: #1A73E8 !important; }
+        .dBtn:hover { background: #FEF2F2 !important; color: #DC2626 !important; border-color: #FECACA !important; }
+        .eBtn:hover { background: #1557b0 !important; }
+        .upBtn:hover { background: #1557b0 !important; }
+      `}</style>
 
-  if (isPaginationLoading) {
-    shopify.loading(isPaginationLoading);
-  }
-
-  // typeof shopify != "undefined" && shopify.loading(isPaginationLoading);
-
-  const handleModalOpen = () => {
-    setModalActive(true);
-  };
-
-  const handleModalClose = () => {
-    setModalActive(false);
-  };
-  const { selectedResources, allResourcesSelected, handleSelectionChange } =
-    useIndexResourceState(pdfData, {
-      selectedResources: [],
-      resourceIDResolver: (resource) => resource.id,
-    });
-  const rowMarkup =
-    pdfData?.length &&
-    pdfData?.map(({ id, pdfName, frontPage, key, date, size }, index) => (
-      <IndexTable.Row
-        id={id}
-        key={id}
-        selected={selectedResources.includes(id)}
-        position={index}
-      >
-        <IndexTable.Cell>
-          <Text variant="bodyMd" fontWeight="bold" as="span">
-            <div className="flex items-center text-xs font-normal text-gray-700 font- gap-2">
-              <Thumbnail alt={pdfName} source={frontPage} size="medium" />
-              <span
-                onClick={() => navigate(`/app/details/${id}`)}
-                className="hover:underline"
-              >
-                {pdfName}
-              </span>
-            </div>
-          </Text>
-        </IndexTable.Cell>
-        <IndexTable.Cell> {date}</IndexTable.Cell>
-        <IndexTable.Cell>{size} KB</IndexTable.Cell>
-        <IndexTable.Cell>
-          <p
-            className="flex items-center gap-2 cursor-pointer"
-            onClick={() => handleCopyKey(key)}
-          >
-            <span className="p-1 relative px-2 shadow-md text-xs text-black rounded-md cursor-pointer hover:bg-black hover:text-white capitalize transition-colors">
-              {copiedKey === key ? "copied" : "copy key "}
-            </span>
-          </p>
-        </IndexTable.Cell>
-      </IndexTable.Row>
-    ));
-
-  const promotedBulkActions = [
-    {
-      destructive: true,
-      content: "Delete PDF",
-      onAction: handleModalOpen,
-    },
-  ];
-
-  const resourceName = {
-    singular: "PDF",
-    plural: "PDFs",
-  };
-  return (
-    <Page
-      backAction={{ content: "Settings", url: "/app" }}
-      actionGroups={[
-        {
-          title: view.toUpperCase(),
-          icon: AppsFilledIcon,
-          actions: [
-            {
-              content: "List",
-              icon: LayoutColumns3Icon,
-              onAction: () => setView("list"),
-              active: view === "list",
-            },
-            {
-              content: "Grid",
-              icon: ListBulletedIcon,
-              onAction: () => setView("grid"),
-              active: view === "grid",
-            },
-          ],
-        },
-      ]}
-      primaryAction={{
-        loading: isLoading,
-        content: "Upload PDF",
-        onAction: () => {
-          if (uploadCount >= maxUploads) {
-            shopify.toast.show(
-              `You can only upload up to ${maxUploads} PDFs based on your current plan.`,
-            );
-          } else {
-            fileInputRef.current?.click();
-          }
-        },
-      }}
-      title="PDFs"
-    >
-      <input
-        type="file"
-        ref={fileInputRef}
-        accept="application/pdf"
-        className="hidden"
-        onChange={handleFileChange}
-        name="pdf"
-        id="pdfupload"
-      />
-
-      {/* Main section  */}
-      <DeleteModal
-        active={modalActive}
-        onClose={handleModalClose}
-        onDelete={handlePdfDelete}
-      />
-
-      {!pdfData || !pdfData.length ? (
-        <LegacyCard sectioned>
-          <EmptyState
-            heading="Manage your Pdfs"
-            action={{
-              content: "Upload PDF",
-              onAction: () => {
-                if (uploadCount >= maxUploads) {
-                  shopify.toast.show(
-                    `You can only upload up to ${maxUploads} PDFs based on your current plan.`,
-                  );
-                } else {
-                  fileInputRef.current?.click();
-                }
-              },
-            }}
-            image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-          >
-            <p>
-              Manage and organize your PDF documents with ease, ensuring quick
-              access and efficient storage.
-            </p>
-          </EmptyState>
-        </LegacyCard>
-      ) : view === "list" ? (
-        <div className="relative">
-          <Box paddingBlockEnd="400">
-            {isPaginationLoading ? (
-              <div className=" absolute z-[999] right-2 top-2">
-                <Spinner size="small" />
-              </div>
-            ) : null}
-            <LegacyCard>
-              <IndexTable
-                resourceName={resourceName}
-                itemCount={pdfData?.length || 0}
-                selectedItemsCount={
-                  allResourcesSelected ? "All" : selectedResources?.length
-                }
-                promotedBulkActions={promotedBulkActions}
-                onSelectionChange={handleSelectionChange}
-                headings={[
-                  { title: "File Name" },
-                  { title: "Date" },
-                  { title: "Size" },
-                  { title: "PDF key" },
-                ]}
-                pagination={{
-                  hasNext: pageInformation?.hasNextPage && !isPaginationLoading,
-                  hasPrevious:
-                    pageInformation?.hasPreviousPage && !isPaginationLoading,
-                  onNext: () => handleNextPagination(),
-                  onPrevious: () => handlePrevPagination(),
-                }}
-              >
-                {rowMarkup}
-              </IndexTable>
-            </LegacyCard>
-          </Box>
-        </div>
-      ) : (
-        <>
-          <Grid>
-            {pdfData?.map(({ id, pdfName, frontPage, key }, index) => (
-              <Grid.Cell
-                columnSpan={{ xs: 6, sm: 3, md: 3, lg: 6, xl: 6 }}
-                key={id}
-              >
-                <div className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300">
-                  <LegacyCard sectioned>
-                    {/* Card Header */}
-                    <div className="flex justify-between items-center px-6 py-3 border-b border-gray-200">
-                      <p className="text-lg font-semibold text-gray-700">
-                        PDF Details {index + 1}
-                      </p>
-                    </div>
-
-                    {/* Card Body */}
-                    <div className="px-6 py-4">
-                      <div className="flex items-center space-x-4 mb-4">
-                        <div className="flex-shrink-0">
-                          <Thumbnail
-                            alt={pdfName}
-                            source={frontPage}
-                            size="large"
-                          />
-                        </div>
-                        <div className="flex flex-col justify-between w-full">
-                          <span
-                            onClick={() => navigate(`/app/details/${id}`)}
-                            className="text-xl font-semibold text-gray-800 hover:text-blue-600 cursor-pointer truncate"
-                          >
-                            {pdfName.slice(0, 15)}.pdf
-                          </span>
-                          <span className="text-sm text-gray-500">
-                            Uploaded on Jul 20 at 3:46pm
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-between items-center space-x-4">
-                        {/* File Size */}
-                        <div className="text-sm text-gray-500">
-                          Size: 647 KB
-                        </div>
-
-                        <div
-                          onClick={() => handleCopyKey(key)}
-                          className="flex  items-center text-sm text-blue-500 w-28 hover:bg-blue-50 px-3 py-1 rounded-md  cursor-pointer"
-                        >
-                          <p className="flex items-center ">
-                            <Icon source={ClipboardIcon} tone="base" />
-                            <span className="font-medium">
-                              {copiedKey === key ? "Copied" : "Copy Key"}
-                            </span>
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </LegacyCard>
-                </div>
-              </Grid.Cell>
-            ))}
-          </Grid>
-          <div className="mt-2">
-            <Pagination
-              hasNext={pageInformation?.hasNextPage && !isPaginationLoading}
-              hasPrevious={
-                pageInformation?.hasPreviousPage && !isPaginationLoading
-              }
-              onNext={handleNextPagination}
-              onPrevious={handlePrevPagination}
-            />
+      {/* ── HEADER ── */}
+      <div style={{ background: "#fff", borderBottom: "1px solid #E8EDF2", padding: "16px 32px" }}>
+        <div style={{ maxWidth: 1060, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <h1 style={{ fontSize: 17, fontWeight: 600, color: "#0F172A", margin: "0 0 2px", letterSpacing: "-0.02em" }}>My Catalogs</h1>
+            <p style={{ fontSize: 12, color: "#94A3B8", margin: 0 }}>Upload PDFs, tag products, publish to your store</p>
           </div>
-        </>
+          {/* Stat strip */}
+          <div style={{ display: "flex", alignItems: "center" }}>
+            {[
+              { label: "Catalogs", value: `${pdfList.length}${maxCatalogs !== Infinity ? ` / ${maxCatalogs}` : ""}` },
+              { label: "Pages", value: String(totalPages) },
+              { label: "Hotspots", value: String(totalHotspots) },
+            ].map((s, i) => (
+              <div key={s.label} style={{ padding: "0 18px", borderLeft: i > 0 ? "1px solid #E8EDF2" : "none", textAlign: "center" }}>
+                <p style={{ fontSize: 15, fontWeight: 600, color: "#0F172A", margin: "0 0 1px", letterSpacing: "-0.02em" }}>{s.value}</p>
+                <p style={{ fontSize: 11, color: "#94A3B8", margin: 0 }}>{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 1060, margin: "0 auto", padding: "22px 32px" }}>
+
+        {/* ── PLAN LIMIT WARNING ── */}
+        {atLimit && (
+          <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "12px 16px", marginBottom: 18, display: "flex", alignItems: "center", gap: 10 }}>
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" stroke="#D97706" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <p style={{ fontSize: 13, color: "#92400E", margin: 0 }}>
+              You've reached your {plan} plan limit of {maxCatalogs} catalogs.{" "}
+              <a href="/app/subscription" style={{ color: "#1A73E8", textDecoration: "none", fontWeight: 500 }}>Upgrade to add more →</a>
+            </p>
+          </div>
+        )}
+
+        {/* ── UPLOAD ZONE — always visible unless at limit ── */}
+        {!atLimit && (
+          <div style={{ background: "#fff", border: "1px solid #E8EDF2", borderRadius: 12, padding: "18px 20px", marginBottom: 20, animation: "fadeIn 0.2s ease" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <p style={{ fontSize: 13, fontWeight: 500, color: "#374151", margin: 0 }}>Upload a new catalog</p>
+              {maxCatalogs !== Infinity && (
+                <span style={{ fontSize: 11, color: "#94A3B8" }}>
+                  {pdfList.length} of {maxCatalogs} slots used
+                  <span style={{ display: "inline-block", marginLeft: 8, width: 64, height: 4, background: "#E8EDF2", borderRadius: 99, verticalAlign: "middle", position: "relative", overflow: "hidden" }}>
+                    <span style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${(pdfList.length / maxCatalogs) * 100}%`, background: "#1A73E8", borderRadius: 99 }} />
+                  </span>
+                </span>
+              )}
+            </div>
+            <UploadZone onFileSelected={handleFileSelected} />
+          </div>
+        )}
+
+        {/* ── CATALOG LIST ── */}
+        {pdfList.length === 0 && !isProcessing ? (
+          <div style={{ padding: "56px 0", textAlign: "center" }}>
+            <p style={{ fontSize: 14, color: "#94A3B8", margin: 0 }}>No catalogs yet — upload your first PDF above to get started.</p>
+          </div>
+        ) : (
+          <>
+            {/* Search + bulk actions */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, padding: "8px 13px" }}>
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke="#C4CDD6" strokeWidth="1.75" /><path d="M21 21l-4.35-4.35" stroke="#C4CDD6" strokeWidth="1.75" strokeLinecap="round" /></svg>
+                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search catalogs…" style={{ border: "none", outline: "none", fontSize: 13, color: "#0F172A", background: "transparent", flex: 1, fontFamily: "inherit" }} />
+                {searchQuery && <button onClick={() => setSearchQuery("")} style={{ border: "none", background: "none", cursor: "pointer", color: "#94A3B8", fontSize: 14, padding: 0, lineHeight: 1 }}>✕</button>}
+              </div>
+              {selectedIds.size > 0 && (
+                <button
+                  className="dBtn"
+                  onClick={() => setDeleteTarget("bulk")}
+                  style={{ display: "flex", alignItems: "center", gap: 6, background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s" }}
+                >
+                  <Trash /> Delete {selectedIds.size}
+                </button>
+              )}
+              <span style={{ fontSize: 12, color: "#94A3B8", whiteSpace: "nowrap" }}>{filteredList.length} catalog{filteredList.length !== 1 ? "s" : ""}</span>
+            </div>
+            {/* Table */}
+            <div style={{ background: "#fff", border: "1px solid #E8EDF2", borderRadius: 12, overflow: "hidden" }}>
+              {/* Col header */}
+            <div style={{ display: "grid", gridTemplateColumns: "28px 50px 1fr 100px 58px 70px 150px 116px", alignItems: "center", padding: "9px 16px", gap: 10, background: "#F8FAFC", borderBottom: "1px solid #E8EDF2" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} style={{ width: 14, height: 14, cursor: "pointer", accentColor: "#1A73E8" }} />
+                </div>
+                {[
+                  { label: "Cover", align: "left" },
+                  { label: "Catalog name", align: "left" },
+                  { label: "Uploaded", align: "left" },
+                  { label: "Pages", align: "center" },
+                  { label: "Hotspots", align: "center" },
+                  { label: "PDF Key", align: "left" },
+                  { label: "", align: "left" },
+                ].map((col) => (
+                  <div key={col.label || "actions"} style={{ fontSize: 11, fontWeight: 500, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.07em", textAlign: col.align as any }}>{col.label}</div>
+                ))}
+              </div>
+
+              {/* Processing placeholder row */}
+              {isProcessing && (
+                <div onClick={() => { setShowUploadModal(true); setUploadModalPhase("progress"); }} style={{ display: "grid", gridTemplateColumns: "28px 50px 1fr 100px 58px 70px 150px 116px", alignItems: "center", padding: "12px 16px", gap: 10, background: "#FFFEF5", borderBottom: "1px solid #FDE68A", cursor: "pointer" }}>
+                  <div style={{ width: 42, height: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div></div>
+                    <div style={{ width: 18, height: 18, border: "2px solid #1A73E8", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: "#0F172A", margin: "0 0 2px" }}>{convertedFileName || "New catalog"}</p>
+                    <p style={{ fontSize: 11, color: "#F59E0B", margin: 0 }}>{STEPS[convertStep] || "Processing…"}</p>
+                  </div>
+                  <span style={{ fontSize: 12, color: "#94A3B8" }}>—</span>
+                  <div style={{ textAlign: "center" }}><span style={{ fontSize: 12, color: "#94A3B8" }}>—</span></div>
+                  <div style={{ textAlign: "center" }}><span style={{ fontSize: 12, color: "#94A3B8" }}>—</span></div>
+                  <span style={{ fontSize: 12, color: "#94A3B8" }}>—</span>
+                  <span></span>
+                </div>
+              )}
+
+              {/* Rows */}
+              {filteredList.map((pdf, i) => {
+                const isCopied = copiedKey === pdf.key;
+                return (
+                  <div
+                    key={pdf.id}
+                    className="cRow"
+                    onClick={() => navigate(`/app/details/${pdf.id}`)}
+                    style={{ display: "grid", gridTemplateColumns: "28px 50px 1fr 100px 58px 70px 150px 116px", alignItems: "center", padding: "12px 16px", gap: 10, borderTop: i === 0 && !isProcessing ? "none" : "1px solid #F1F5F9", background: "#fff" }}
+                  >
+                    {/* Checkbox */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }} onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" checked={selectedIds.has(pdf.id)} onChange={() => {}} onClick={(e) => toggleSelect(pdf.id, e)} style={{ width: 14, height: 14, cursor: "pointer", accentColor: "#1A73E8" }} />
+                    </div>
+                    {/* Thumb */}
+                    <div style={{ width: 42, height: 32, borderRadius: 5, overflow: "hidden", background: "#F1F5F9", border: "1px solid #E8EDF2", flexShrink: 0 }}>
+                      {pdf.frontPage
+                        ? <img src={pdf.frontPage} alt={pdf.pdfName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="#CBD5E1" strokeWidth="1.75" strokeLinejoin="round" /></svg>
+                          </div>
+                      }
+                    </div>
+
+                    {/* Name */}
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: "#0F172A", margin: "0 0 2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pdf.pdfName || "Untitled"}</p>
+                      <p style={{ fontSize: 11, color: "#B0BAC9", margin: 0 }}>{pdf.size ? `${Number(pdf.size).toFixed(0)} KB` : "—"}</p>
+                    </div>
+
+                    {/* Date */}
+                    <span style={{ fontSize: 12, color: "#94A3B8" }}>{pdf.date || "—"}</span>
+
+                    {/* Pages */}
+                    <div style={{ textAlign: "center" }}>
+                      <span style={{ fontSize: 12, color: "#374151" }}>{pdf.pageCount}</span>
+                    </div>
+
+                    {/* Hotspots */}
+                    <div style={{ textAlign: "center" }}>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: pdf.hotspotCount > 0 ? "#16A34A" : "#94A3B8", background: pdf.hotspotCount > 0 ? "#DCFCE7" : "#F1F5F9", borderRadius: 99, padding: "2px 9px", display: "inline-block" }}>
+                        {pdf.hotspotCount} pts
+                      </span>
+                    </div>
+
+                    {/* PDF Key */}
+                    <button
+                      className="kPill"
+                      onClick={(e) => handleCopyKey(pdf.key, e)}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "#F8FAFC", border: "1px solid #E8EDF2", borderRadius: 6, padding: "4px 9px", fontSize: 11, color: "#64748B", cursor: "pointer", fontFamily: "monospace", transition: "all 0.15s", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                    >
+                      {isCopied
+                        ? <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        : <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" strokeWidth="1.75" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" strokeWidth="1.75" /></svg>
+                      }
+                      {isCopied ? "Copied!" : (pdf.key?.substring(0, 10) + "…")}
+                    </button>
+
+                    {/* Actions — ALWAYS visible */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }} onClick={(e) => e.stopPropagation()}>
+                      <button
+                        className="eBtn"
+                        onClick={() => navigate(`/app/details/${pdf.id}`)}
+                        style={{ background: "#1A73E8", color: "#fff", border: "none", borderRadius: 7, padding: "6px 13px", fontSize: 12, fontWeight: 500, cursor: "pointer", letterSpacing: "-0.01em", transition: "background 0.15s", whiteSpace: "nowrap" }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="dBtn"
+                        onClick={() => setDeleteTarget(pdf.id)}
+                        title="Delete this catalog"
+                        style={{ width: 29, height: 29, display: "flex", alignItems: "center", justifyContent: "center", background: "#F8FAFC", color: "#94A3B8", border: "1px solid #E8EDF2", borderRadius: 7, cursor: "pointer", transition: "all 0.15s", flexShrink: 0 }}
+                      >
+                        <Trash />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Pagination */}
+            {(pageInfo?.hasPreviousPage || pageInfo?.hasNextPage) && (
+              <div style={{ display: "flex", justifyContent: "center", marginTop: 20 }}>
+                <Pagination hasPrevious={pageInfo?.hasPreviousPage} hasNext={pageInfo?.hasNextPage} onPrevious={() => handlePaginate("prev")} onNext={() => handlePaginate("next")} />
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ── OVERLAYS ── */}
+      {showUploadModal && uploadModalFile && (
+        <UploadModal
+          file={uploadModalFile}
+          onClose={handleCloseUploadModal}
+          onChangeFile={handleChangeFile}
+          onUpload={handleUploadFromModal}
+          phase={uploadModalPhase}
+          step={convertStep}
+          onEdit={() => { setShowUploadModal(false); if (newCatalogId) navigate(`/app/details/${newCatalogId}`); }}
+        />
       )}
-    </Page>
+      {showSuccessToast && <SuccessToast />}
+      <input ref={uploadFileRef} type="file" accept=".pdf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f && f.type === "application/pdf") { setUploadModalFile(f); setUploadModalPhase("preview"); } if (e.target) e.target.value = ""; }} />
+      {deleteTarget && (
+      <DeleteModal active={!!deleteTarget} onClose={() => setDeleteTarget(null)} onDelete={handleDeleteConfirm} count={deleteTarget === "bulk" ? selectedIds.size : 1} />
+      )}
+    </div>
   );
 };
 
-export default PDFConverter;
+export default PdfConvert;

@@ -18,7 +18,7 @@ const RangeSliderComponent: React.FC<RangeSliderComponentProps> = ({
     onChange(value);
   };
 
-  return (
+  return ( 
     <RangeSlider
       label="Hotspot size"
       value={value}

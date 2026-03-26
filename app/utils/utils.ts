@@ -41,7 +41,7 @@ function findGhostscript(): string {
     // 3. Search common install directories
     const programFiles = ["C:\\Program Files (x86)", "C:\\Program Files"];
     for (const pf of programFiles) {
-      const gsDir = path.join(pf, "gs");\
+      const gsDir = path.join(pf, "gs");
       try {
         const versions = fsSync.readdirSync(gsDir);
         for (const ver of versions.reverse()) { // reverse to get latest version first

@@ -3,7 +3,7 @@ import { DeleteIcon, XIcon } from "@shopify/polaris-icons";
 import { motion } from "framer-motion";
 import Draggable from "react-draggable";
 import { useFetcher } from "@remix-run/react";
-import { IMAGES, Marker } from "app/constants/types";
+import { IMAGES, Marker } from "../constants/types";
 import {
   BlockStack,
   Button,
@@ -218,40 +218,35 @@ const PageFlip = ({
     saturation: 1,
   });
   return (
-    <div className="w-[80%]">
-      <Page
-        backAction={{ content: "Settings", url: "/app/pdf-convert" }}
-        primaryAction={{
-          content: "Save",
-          onAction: handleSave,
-          loading: fetcher.state === "submitting",
-        }}
-        fullWidth
-      >
-        <Layout>
-          <Card background="bg-surface-secondary">
-            <div
-              // h-[80vh] w-full
-              className="relative p-8  w-full mx-auto"
+  <div style={{ width: "100%" }}>
+      <div style={{ width: "100%" }}>
+      <div style={{ padding: "16px 20px", display: "flex", justifyContent: "flex-end" }}>
+        <button
+          onClick={handleSave}
+          disabled={fetcher.state === "submitting"}
+          style={{ background: "#1A73E8", color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", fontSize: 13, fontWeight: 600, cursor: fetcher.state === "submitting" ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, opacity: fetcher.state === "submitting" ? 0.7 : 1 }}
+        >
+          {fetcher.state === "submitting" && (
+            <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+          )}
+          {fetcher.state === "submitting" ? "Saving…" : "Save hotspots"}
+        </button>
+      </div>
+      <div>
+          <div>
+          <div
+              style={{ position: "relative", padding: "20px", width: "100%", margin: "0 auto" }}
               id="image-container"
             >
-              <motion.div
+              <div
                 ref={containerRef}
-                className=" flex w-full  bg-white rounded-lg shadow-lg"
-                initial={{ rotateY: 0, zIndex: 0 }}
-                animate={{
-                  rotateY: animate ? (currentPage % 2 === 0 ? 0 : -180) : 0,
-                  zIndex: currentPage % 2 === 0 ? 0 : 1,
-                }}
-                transition={{ duration: 0.6 }}
-                style={{ transformOrigin: "right center" }}
-                onAnimationComplete={() => setAnimate(false)}
+                style={{ display: "flex", width: "100%", background: "#fff", borderRadius: 8, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", overflow: "hidden" }}
               >
-                <div ref={leftImageRef} className="relative">
+            <div ref={leftImageRef} style={{ position: "relative", flex: 1, minWidth: 0 }}>
                   <img
                     src={images[currentPage].url}
                     alt={`Page ${currentPage + 1}`}
-                    className="w-full cursor-crosshair h-full object-contain rounded-tl-lg  rounded-bl-lg"
+                    style={{ display: "block", width: "100%", height: "auto", cursor: "crosshair", borderRadius: "8px 0 0 8px" }}
                     onClick={(event) =>
                       handleImageMarker(event, leftImageRef, currentPage)
                     }
@@ -293,7 +288,7 @@ const PageFlip = ({
                   )}
                 </div>
 
-                <div ref={rightImageRef} className="relative">
+              <div ref={rightImageRef} style={{ position: "relative", flex: 1, minWidth: 0 }}>
                   <img
                     src={
                       currentPage + 1 < images.length
@@ -301,7 +296,7 @@ const PageFlip = ({
                         : images[currentPage].url
                     }
                     alt={`Page ${currentPage + 2}`}
-                    className="w-full  h-full cursor-crosshair object-contain rounded-tr-lg rounded-br-lg"
+                    style={{ display: "block", width: "100%", height: "auto", cursor: "crosshair", borderRadius: "0 8px 8px 0" }}
                     onClick={(event) =>
                       handleImageMarker(event, rightImageRef, currentPage + 1)
                     }
@@ -342,17 +337,13 @@ const PageFlip = ({
                       ),
                   )}
                 </div>
-              </motion.div>
+          </div>
             </div>
 
-            <div className="flex items-center justify-center w-full mt-2">
-              <Pagination
-                label="Pagination"
-                hasPrevious={currentPage !== 0}
-                onPrevious={handlePrevPage}
-                hasNext={currentPage + 2 < images.length}
-                onNext={handleNextPage}
-              />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, padding: "16px 0" }}>
+              <button onClick={handlePrevPage} disabled={currentPage === 0} style={{ background: currentPage === 0 ? "#F1F5F9" : "#fff", border: "1px solid #E2E8F0", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 500, color: currentPage === 0 ? "#94A3B8" : "#374151", cursor: currentPage === 0 ? "default" : "pointer" }}>← Prev</button>
+              <span style={{ fontSize: 13, color: "#64748B", fontWeight: 500 }}>Page {currentPage + 1}–{Math.min(currentPage + 2, images.length)} of {images.length}</span>
+              <button onClick={handleNextPage} disabled={currentPage + 2 >= images.length} style={{ background: currentPage + 2 >= images.length ? "#F1F5F9" : "#fff", border: "1px solid #E2E8F0", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 500, color: currentPage + 2 >= images.length ? "#94A3B8" : "#374151", cursor: currentPage + 2 >= images.length ? "default" : "pointer" }}>Next →</button>
             </div>
             {selectedMarker && (
               <div className="">
@@ -440,7 +431,7 @@ const PageFlip = ({
                 ></div>
               </div>
             )}
-          </Card>
+    </div>
           <div className="absolute hidden top-2">
             <Card roundedAbove="sm">
               <BlockStack gap="200">
@@ -476,8 +467,8 @@ const PageFlip = ({
               </BlockStack>
             </Card>
           </div>
-        </Layout>
-      </Page>
+      </div>
+      </div>
     </div>
   );
 };
