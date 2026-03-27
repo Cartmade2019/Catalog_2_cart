@@ -1,39 +1,35 @@
 {% assign product = all_products[handle] %}
 
 <div data-hotspot-id="hotspot-{{data_page_index}}-{{data_hotspot_index}}"
-    class="custom-popover hidden  bg-white p-4 border border-gray-200 rounded shadow-lg opacity-100 transition-opacity duration-300 pointer-events-none">
-    <div class="relative bg-[{{tooltipData.backgroundColor}}] text-[{{tooltipData.fontColor}}]">
-        <span class="cross-btn">
-            <svg width="64px" height="64px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
-                stroke="#ff0000">
-                <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-                <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
-                <g id="SVGRepo_iconCarrier">
-                    <path d="M19 5L4.99998 19M5.00001 5L19 19" stroke="#ff0000" stroke-width="1.5"
-                        stroke-linecap="round" stroke-linejoin="round"></path>
-                </g>
+    class="custom-popover hidden">
+    <div class="relative bg-[{{tooltipData.backgroundColor}}] text-[{{tooltipData.fontColor}}] rounded-[10px] overflow-hidden">
+
+        <button type="button" class="cross-btn" aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 5L4.99998 19M5.00001 5L19 19" stroke="#555" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-        </span>
-        <div class="modal-content-wrapper flex gap-4 flex-wrap items-center">
+        </button>
+
+        <div class="modal-content-wrapper">
             <div class="modal-content-item">
                 {% if product.featured_image %}
                 <img src="{{ product.featured_image | img_url: 'medium' }}" alt="{{ product.title }}">
                 {% else %}
-                <img src="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-                    alt="{{ product.title }}">
+                <img src="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png" alt="{{ product.title }}">
                 {% endif %}
             </div>
+
             <div class="modal-content-item">
                 {% if product %}
-                <h3 class="text-xxl font-semibold text-[{{tooltipData.fontColor}}] ">{{ product.title }}</h3>
-                <p class="text-md desc">{{ product.description | truncatewords: 10 }}</p>
-                <p class="text-md modal-price text-[{{tooltipData.priceColor}}] mt-2">${{ product.price | money }}</p>
+                <h3 class="text-xl font-semibold" style="color: {{tooltipData.fontColor}};">{{ product.title }}</h3>
+                <p class="text-sm mt-1 desc">{{ product.description | truncatewords: 12 }}</p>
+                <p class="text-base font-bold mt-2" style="color: {{tooltipData.priceColor}};">{{ product.price | money }}</p>
 
-                <form action="/cart/add" method="post" class="mt-4" id="add-to-cart-form-{{ data_hotspot_index }}">
-                    <!-- Variant selection dropdown (if multiple variants) -->
+                <div class="mt-4" id="add-to-cart-form-{{ data_page_index }}-{{ data_hotspot_index }}">
                     {% if product.variants.size > 1 %}
                     <select name="id"
-                        class="variant-select text-black pointer-events-auto cursor-pointer w-full p-2 border rounded mt-2">
+                        class="w-full p-2 border rounded mt-2 text-black pointer-events-auto cursor-pointer">
                         {% for variant in product.variants %}
                         <option value="{{ variant.id }}">{{ variant.title }}</option>
                         {% endfor %}
@@ -41,22 +37,23 @@
                     {% else %}
                     <input type="hidden" name="id" value="{{ product.variants.first.id }}">
                     {% endif %}
+
                     <button type="button"
-                        style="box-shadow: 2px 2px {{buttonData.shadow}}px {{buttonData.shadowColor}}; border:{{buttonData.borderWidth}}px solid {{buttonData.borderColor}};"
-                        class="add-to-cart-btn pointer-events-auto cursor-pointer bg-[{{buttonData.backgroundColor}}] text-[{{buttonData.textColor}}] py-[{{buttonData.paddingY}}px] px-[{{buttonData.paddingX}}px] rounded-[{{buttonData.borderRadius}}] hover:bg-[{{buttonData.textColor}}] hover:text-[{{buttonData.backgroundColor}}] transition mt-4 text-[{{buttonData.fontSize}}px]">
-                        {{buttonData.buttonText}}
+                        style="box-shadow: 2px 2px {{buttonData.shadow}}px {{buttonData.shadowColor}}; border: {{buttonData.borderWidth}}px solid {{buttonData.borderColor}}; background-color: {{buttonData.backgroundColor}}; color: {{buttonData.textColor}}; padding: {{buttonData.paddingY}}px {{buttonData.paddingX}}px; border-radius: {{buttonData.borderRadius}}; font-size: {{buttonData.fontSize}}px;"
+                        class="add-to-cart-btn pointer-events-auto cursor-pointer w-full transition mt-3">
+                        {{ buttonData.buttonText }}
                     </button>
-                    <button type="button"
-                        class="add-to-cart-btn pointer-events-auto cursor-pointer bg-blue-500 text-white  py-[{{buttonData.paddingY}}px] px-[{{buttonData.paddingX}}px]  rounded hover:bg-blue-600 transition mt-4">
-                        <a href="/products/{{product.handle}}" target="_blank">
-                            view product
-                        </a>
-                    </button>
-                </form>
+
+                    <a href="/products/{{product.handle}}" target="_blank"
+                        class="block text-center mt-2 text-sm text-blue-600 underline hover:text-blue-800">
+                        View product
+                    </a>
+                </div>
                 {% else %}
-                <p class="text-sm text-gray-500">Product not found</p>
+                <p class="text-sm text-gray-500">Product not found.</p>
                 {% endif %}
             </div>
         </div>
+
     </div>
 </div>

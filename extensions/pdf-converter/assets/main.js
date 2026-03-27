@@ -1,146 +1,152 @@
-const flipBook = (elBook) => {
-  let currentPage = 0;
-  const pages = elBook.querySelectorAll(".page");
-  const totalPages = pages.length;
-  let points = [];
+(function () {
+  'use strict';
 
-  const getPoints = (pageElement) => {
-    return pageElement ? pageElement.querySelectorAll(".points") : [];
-  };
-
-  const updatePage = (newPage) => {
-    currentPage = Math.max(0, Math.min(newPage, totalPages - 1));
-    elBook.style.setProperty("--c", currentPage);
-
-    const leftPage =
-      currentPage > 0
-        ? pages[currentPage - 1].querySelector(".back,.tooltip")
-        : null;
-    const rightPage =
-      currentPage < totalPages - 1
-        ? pages[currentPage + 1].querySelector(".front,.tooltip")
-        : null;
-
-    const leftPoints = getPoints(leftPage);
-    const rightPoints = getPoints(rightPage);
-
-    points = [];
-    if (leftPoints.length > 0) {
-      leftPoints.forEach((point, index) => {
-        points.push(point);
-      });
-    } else {
-      console.log("No points found on left page.");
-    }
-
-    if (rightPoints.length > 0) {
-      rightPoints.forEach((point, index) => {
-        points.push(point);
-      });
-    } else {
-      console.log("No points found on right page.");
-    }
-
-    points.forEach((point) => {
-      point.addEventListener("click", (event) => {
-        if (document.querySelector("div[data-hotspot-id]:not(.hidden)"))
-          document
-            .querySelector("div[data-hotspot-id]:not(.hidden)")
-            .classList.toggle("hidden");
-
-        const hotspotId = event.target
-          .closest(".points")
-          ?.getAttribute("data-id");
-        if (!hotspotId) {
-          console.error("No data-id found for the clicked point");
-          return;
-        }
-
-        const targetPopover = document.querySelector(
-          `div[data-hotspot-id="${hotspotId}"]`,
-        );
-        const crossBtn = targetPopover.querySelector(".cross-btn");
-        crossBtn.addEventListener("click", () => {
-          targetPopover.classList.add("hidden");
-        });
-        if (targetPopover) {
-          targetPopover.classList.toggle("hidden");
-        } else {
-          console.error(`No popover found for data-hotspot-id: ${hotspotId}`);
-        }
-        let variantId;
-        const submitButton = targetPopover.querySelector("button");
-        const selectedVariant = targetPopover.querySelector("select");
-
-        if (selectedVariant) {
-          selectedVariant.addEventListener("change", (e) => {
-            variantId = e.target.value;
-          });
-        } else {
-          variantId = targetPopover.querySelector("input[name='id']").value;
-        }
-        submitButton.addEventListener("click", (e) => {
-          e.preventDefault();
-
-          const formData = new FormData();
-          formData.append("id", variantId);
-          fetch("/cart/add.js", {
-            method: "POST",
-            body: formData,
-          })
-            .then((response) => response.json())
-            .then((data) => {
-              const hotspotId = event.target.closest(".points").dataset.id;
-              const targetPopover = document.querySelector(
-                `div[data-hotspot-id="${hotspotId}"]`,
-              );
-              if (targetPopover) {
-                targetPopover.classList.add("hidden");
-              }
-              const cartPopup = document.getElementById("cart-popup");
-              const closePopupButton = document.getElementById("close-popup");
-              const continueShopping =
-                document.getElementById("continue-shopping");
-              if (cartPopup) {
-                cartPopup.classList.remove("hidden");
-                cartPopup.classList.add("flex");
-
-                closePopupButton.addEventListener("click", () => {
-                  cartPopup.classList.add("hidden");
-                  cartPopup.classList.remove("flex");
-                });
-              }
-              continueShopping.addEventListener("click", () => {
-                cartPopup.classList.add("hidden");
-                cartPopup.classList.remove("flex");
-              });
-
-              if (!data) {
-                console.error("Failed to add product");
-              }
-            })
-            .catch((error) => {
-              console.error("Error adding product to cart:", error);
-              alert(
-                "There was an error adding the product to the cart. Please try again.",
-              );
-            });
-        });
-      });
+  /* ─────────────────────────────────────────
+     Helpers
+  ───────────────────────────────────────── */
+  function closeAllPopovers() {
+    document.querySelectorAll('.custom-popover:not(.hidden)').forEach(function (el) {
+      el.classList.add('hidden');
     });
-  };
+  }
 
-  pages.forEach((page, idx) => {
-    page.style.setProperty("--i", idx);
+  /* ─────────────────────────────────────────
+     Hotspot → Popover  (event delegation — attached once, works for all pages)
+  ───────────────────────────────────────── */
+  document.addEventListener('click', function (e) {
+
+    // 1. Clicked a hotspot pin
+    const hotspot = e.target.closest('.points');
+    if (hotspot) {
+      e.stopPropagation();
+      const hotspotId = hotspot.dataset.id;
+      if (!hotspotId) return;
+
+      const popover = document.querySelector('[data-hotspot-id="' + hotspotId + '"]');
+      if (!popover) {
+        console.warn('No popover found for hotspot id: ' + hotspotId);
+        return;
+      }
+
+      const isOpen = !popover.classList.contains('hidden');
+      closeAllPopovers();
+
+      if (!isOpen) {
+        popover.classList.remove('hidden');
+        bindPopoverEvents(popover);
+      }
+      return;
+    }
+
+    // 2. Clicked the close (×) button inside a popover
+    const crossBtn = e.target.closest('.cross-btn');
+    if (crossBtn) {
+      e.stopPropagation();
+      const popover = crossBtn.closest('.custom-popover');
+      if (popover) popover.classList.add('hidden');
+      return;
+    }
+
+    // 3. Clicked outside any open popover → close all
+    if (!e.target.closest('.custom-popover')) {
+      closeAllPopovers();
+    }
   });
 
-  const prevBtn = document.querySelector(".prev");
-  const nextBtn = document.querySelector(".next");
+  /* ─────────────────────────────────────────
+     Bind add-to-cart inside a popover.
+     Button is cloned on every open to remove stale listeners.
+  ───────────────────────────────────────── */
+  function bindPopoverEvents(popover) {
+    const submitBtn     = popover.querySelector('.add-to-cart-btn');
+    const variantSelect = popover.querySelector('select[name="id"]');
+    const hiddenInput   = popover.querySelector('input[name="id"]');
 
-  prevBtn.addEventListener("click", () => updatePage(currentPage - 1));
-  nextBtn.addEventListener("click", () => updatePage(currentPage + 1));
+    if (!submitBtn) return;
 
-  updatePage(0);
-};
+    // Replace with a fresh clone so old click handlers don't accumulate
+    const freshBtn = submitBtn.cloneNode(true);
+    submitBtn.replaceWith(freshBtn);
 
-document.querySelectorAll(".book").forEach(flipBook);
+    freshBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+
+      const variantId = variantSelect
+        ? variantSelect.value
+        : (hiddenInput ? hiddenInput.value : null);
+
+      if (!variantId) {
+        console.error('No variant ID found');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('id', variantId);
+
+      fetch('/cart/add.js', { method: 'POST', body: formData })
+        .then(function (res) { return res.json(); })
+        .then(function () {
+          popover.classList.add('hidden');
+          showCartPopup();
+        })
+        .catch(function (err) {
+          console.error('Error adding to cart:', err);
+          alert('There was an error adding the product to the cart. Please try again.');
+        });
+    });
+  }
+
+  /* ─────────────────────────────────────────
+     Cart success popup
+  ───────────────────────────────────────── */
+  function showCartPopup() {
+    const cartPopup = document.getElementById('cart-popup');
+    if (!cartPopup) return;
+    cartPopup.classList.remove('hidden');
+    cartPopup.classList.add('flex');
+
+    // { once: true } ensures these never stack up across multiple cart adds
+    document.getElementById('close-popup')
+      ?.addEventListener('click', hideCartPopup, { once: true });
+    document.getElementById('continue-shopping')
+      ?.addEventListener('click', hideCartPopup, { once: true });
+  }
+
+  function hideCartPopup() {
+    const cartPopup = document.getElementById('cart-popup');
+    if (!cartPopup) return;
+    cartPopup.classList.add('hidden');
+    cartPopup.classList.remove('flex');
+  }
+
+  /* ─────────────────────────────────────────
+     FlipBook
+  ───────────────────────────────────────── */
+  const flipBook = function (elBook) {
+    let currentPage  = 0;
+    const pages      = elBook.querySelectorAll('.page');
+    const totalPages = pages.length;
+
+    const updatePage = function (newPage) {
+      currentPage = Math.max(0, Math.min(newPage, totalPages - 1));
+      elBook.style.setProperty('--c', currentPage);
+      // Close any open popover whenever the page turns
+      closeAllPopovers();
+    };
+
+    pages.forEach(function (page, idx) {
+      page.style.setProperty('--i', idx);
+    });
+
+    const prevBtn = document.querySelector('.prev');
+    const nextBtn = document.querySelector('.next');
+
+    if (prevBtn) prevBtn.addEventListener('click', function () { updatePage(currentPage - 1); });
+    if (nextBtn) nextBtn.addEventListener('click', function () { updatePage(currentPage + 1); });
+
+    updatePage(0);
+  };
+
+  document.querySelectorAll('.book').forEach(flipBook);
+
+})();

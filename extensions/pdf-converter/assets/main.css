@@ -5,7 +5,6 @@
 /* FlipBook */
 
 .pdf-body-wrapper {
-  /* or any other parent wrapper */
   margin: 0;
   padding-top: 5rem;
   padding-bottom: 5rem;
@@ -30,22 +29,17 @@
   display: flex;
   margin: auto;
   width: 45%;
-  /*1* let pointer event go trough pages of lower Z than .book */
-  /* pointer-events: none; */
   transform-style: preserve-3d;
   transition: translate 1s;
   translate: calc(min(var(--c), 1) * 50%) 0%;
-  /* Incline on the X axis for pages preview */
 }
 
 .pdf-main-container .page {
-  /* PS: Don't go below thickness 0.5 or the pages might transpare */
   --thickness: 4;
   flex: none;
   display: flex;
   width: 100%;
   font-size: 4px;
-  /*1* allow pointer events on pages */
   pointer-events: all;
   user-select: none;
   transform-style: preserve-3d;
@@ -67,9 +61,9 @@
   flex: none;
   width: 100%;
   backface-visibility: hidden;
-  overflow: hidden;
+  /* FIX: overflow must be visible so hotspot pins are not clipped */
+  overflow: visible;
   background-color: #fff;
-  /* Fix backface visibility Firefox: */
   translate: 0px;
   font-size: 1.8rem;
 }
@@ -79,7 +73,7 @@
   rotate: 0 1 0 180deg;
 }
 
-/* That's it. Your FlipBook customization styles: */
+/* FlipBook customization styles */
 
 .pdf-main-container .book {
   counter-reset: page -1;
@@ -170,75 +164,7 @@
   right: 0;
 }
 
-/* pop up modal */
-.custom-popover {
-  position: absolute;
-  z-index: 1;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  max-width: 550px;
-  background: #ffffff;
-  color: #000000;
-  border-radius: 8px;
-  box-shadow: 0 0 12px -4px black;
-  border: 0;
-  pointer-events: auto;
-}
-.modal-content-item img {
-  border-radius: 6px;
-}
-
-@media (min-width: 750px) {
-  .modal-content-wrapper .modal-content-item {
-    width: calc(60% - 1rem / 2);
-  }
-  .modal-content-wrapper .modal-content-item:first-child {
-    width: calc(40% - 1rem / 2);
-  }
-}
-.custom-popover .cross-btn {
-  position: absolute;
-  top: 0rem;
-  right: 0rem;
-  background: #ebebeb;
-  border-radius: 50%;
-  padding: 0.4rem;
-  cursor: pointer;
-}
-.custom-popover .cross-btn svg {
-  width: 1.5rem;
-  height: 1.5rem;
-}
-
-.custom-popover select {
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg width='14' height='8' viewBox='0 0 14 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 7.99994C6.8684 8.0007 6.73793 7.97548 6.6161 7.92571C6.49426 7.87595 6.38344 7.80262 6.29 7.70994L0.290002 1.70994C0.101699 1.52164 -0.00408936 1.26624 -0.00408936 0.999941C-0.00408936 0.73364 0.101699 0.478245 0.290002 0.289941C0.478306 0.101638 0.733701 -0.00415039 1 -0.00415039C1.2663 -0.00415039 1.5217 0.101638 1.71 0.289941L7 5.58994L12.29 0.299942C12.4813 0.136115 12.7274 0.0505086 12.9791 0.0602298C13.2307 0.0699509 13.4695 0.174284 13.6476 0.352378C13.8257 0.530473 13.93 0.769212 13.9397 1.02089C13.9494 1.27256 13.8638 1.51864 13.7 1.70994L7.7 7.70994C7.51374 7.89469 7.26234 7.99884 7 7.99994Z' fill='%23303030'/%3E%3C/svg%3E%0A");
-  background-repeat: no-repeat;
-  background-position: calc(100% - 1rem);
-  background-size: 12px;
-  margin: 0;
-}
-.custom-popover select:focus-visible {
-  box-shadow: none;
-  outline: 0;
-}
-
-
-/* ************ breakpoints ************ */
-@media (max-width: 1024px) {
-  .pdf-body-wrapper {
-    padding: 3rem;
-    min-height: 100%;
-  }
-  .pdf-main-container .book {
-    width: 52%;
-    margin: 0 auto;
-  }
-}
-
-/* ************ breakpoints ************ */
-/*  */
+/* ─── Hotspot pins ─── */
 .image-hotspots--pin {
   display: block;
   transform: translate(-50%, -50%) !important;
@@ -281,15 +207,102 @@
 }
 
 @keyframes hotspot-wave {
-  0% {
-    transform: scale(1);
+  0%   { transform: scale(1); }
+  100% { transform: scale(1.45); }
+}
+
+/* ─── Tooltip popover ───
+   KEY FIX: position:fixed (not absolute) so it escapes the book/page
+   stacking context and always renders centred in the viewport.
+   The reference confirmed this is the correct approach.
+─── */
+.custom-popover {
+  position: fixed;
+  z-index: 9999;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(90vw, 550px);
+  background: #ffffff;
+  color: #000000;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
+  border: 1px solid #e8e8e8;
+  pointer-events: auto;
+}
+
+.modal-content-wrapper {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding: 1.25rem;
+}
+
+.modal-content-item img {
+  border-radius: 6px;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+@media (min-width: 480px) {
+  .modal-content-wrapper .modal-content-item:first-child {
+    width: calc(38% - 0.5rem);
   }
-  100% {
-    transform: scale(1.45);
+  .modal-content-wrapper .modal-content-item:last-child {
+    width: calc(62% - 0.5rem);
   }
 }
 
-/* button settings */
+.custom-popover .cross-btn {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  background: #f0f0f0;
+  border-radius: 50%;
+  padding: 0.3rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  transition: background 0.15s;
+}
+.custom-popover .cross-btn:hover {
+  background: #e0e0e0;
+}
+.custom-popover .cross-btn svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.custom-popover select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='14' height='8' viewBox='0 0 14 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 7.99994C6.8684 8.0007 6.73793 7.97548 6.6161 7.92571C6.49426 7.87595 6.38344 7.80262 6.29 7.70994L0.290002 1.70994C0.101699 1.52164 -0.00408936 1.26624 -0.00408936 0.999941C-0.00408936 0.73364 0.101699 0.478245 0.290002 0.289941C0.478306 0.101638 0.733701 -0.00415039 1 -0.00415039C1.2663 -0.00415039 1.5217 0.101638 1.71 0.289941L7 5.58994L12.29 0.299942C12.4813 0.136115 12.7274 0.0505086 12.9791 0.0602298C13.2307 0.0699509 13.4695 0.174284 13.6476 0.352378C13.8257 0.530473 13.93 0.769212 13.9397 1.02089C13.9494 1.27256 13.8638 1.51864 13.7 1.70994L7.7 7.70994C7.51374 7.89469 7.26234 7.99884 7 7.99994Z' fill='%23303030'/%3E%3C/svg%3E%0A");
+  background-repeat: no-repeat;
+  background-position: calc(100% - 1rem);
+  background-size: 12px;
+  margin: 0;
+}
+.custom-popover select:focus-visible {
+  box-shadow: none;
+  outline: 0;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 1024px) {
+  .pdf-body-wrapper {
+    padding: 3rem;
+    min-height: 100%;
+  }
+  .pdf-main-container .book {
+    width: 52%;
+    margin: 0 auto;
+  }
+}
+
+/* ─── Button settings ─── */
 .button-settings-item {
   width: 100%;
 }
