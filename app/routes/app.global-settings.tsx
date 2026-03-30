@@ -8,6 +8,7 @@ import { buttonsName } from "../config/config";
 import { ActionFunctionArgs, json, LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { apiVersion, authenticate } from "../shopify.server";
+import {Link} from "@remix-run/react";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -75,8 +76,40 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const responseData = await response.json();
       if (!response.ok) return json({ error: responseData.errors || "Failed to save metafield" }, { status: response.status });
       return json({ message: "Public metafield saved successfully", data: responseData });
+     } else if (source === "AppStatus") {
+      const isEnabled = formData.get("isEnabled") === "true";
+
+      const metafieldData = {
+        namespace: "cartmade",
+        key: "catalog2cart",
+        value: JSON.stringify({ isEnabled }),
+        type: "json",
+        owner_resource: "shop",
+      };
+
+      const response = await fetch(`https://${shop}/admin/api/${apiVersion}/metafields.json`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": accessToken,
+        },
+        body: JSON.stringify({ metafield: metafieldData }),
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        return json(
+          { error: responseData.errors || "Failed to save app status metafield" },
+          { status: response.status },
+        );
+      }
+
+      return json({ message: "App status saved successfully", data: responseData });
+    
     }
-    return 1;
+    
+
   }
 };
 
@@ -96,11 +129,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 
   try {
-    const [buttonSettings, tooltipSettings] = await Promise.all([
-      fetchMetafield("cartmade", "cod_button_settings"),
-      fetchMetafield("cartmade", "cod_tooltip_settings"),
-    ]);
-    return { buttonSettings, tooltipSettings };
+  const [buttonSettings, tooltipSettings, appStatusSettings] = await Promise.all([
+  fetchMetafield("cartmade", "cod_button_settings"),
+  fetchMetafield("cartmade", "cod_tooltip_settings"),
+  fetchMetafield("cartmade", "catalog2cart"),
+]);
+return { buttonSettings, tooltipSettings, appStatusSettings };
   } catch (error) {
     return { error: "Unexpected error occurred while fetching metafields." };
   }
@@ -145,9 +179,26 @@ const GlobalSettings = () => {
     [activeButton],
   );
 
+  const toggleAppStatus = async () => {
+  const newValue = !enabled;
+  setEnabled(newValue);
+
+  const formData = new FormData();
+  formData.append("source", "AppStatus");
+  formData.append("isEnabled", String(newValue));
+
+  await fetch(window.location.pathname, {
+    method: "POST",
+    body: formData,
+  });
+};
+
   const buttonSettings = loaderData?.buttonSettings || {};
   const tooltipSettings = loaderData?.tooltipSettings || {};
-
+const appStatusSettings = loaderData?.appStatusSettings || {};
+const [enabled, setEnabled] = useState(
+  appStatusSettings?.jsonValue?.isEnabled ?? true,
+);
   const ActiveComponent = buttonsName.find(({ link }) => link === activeButton)?.component;
 
   const tabDescriptions: Record<string, string> = {
@@ -167,13 +218,13 @@ const GlobalSettings = () => {
             <h1 style={{ fontSize: 20, fontWeight: 700, color: "#0F172A", margin: "0 0 2px", letterSpacing: "-0.01em" }}>Global Settings</h1>
             <p style={{ fontSize: 13, color: "#64748B", margin: 0 }}>Customize the look and feel of your shoppable catalog experience</p>
           </div>
-          <a href="/app/pdf-convert" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "#64748B", textDecoration: "none", fontWeight: 500, background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 9, padding: "9px 14px", transition: "border-color 0.15s" }}
+          <Link to="/app/pdf-convert" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "#64748B", textDecoration: "none", fontWeight: 500, background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 9, padding: "9px 14px", transition: "border-color 0.15s" }}
             onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#9CA3AF")}
             onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#E2E8F0")}
           >
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
             My Catalogs
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -245,17 +296,73 @@ const GlobalSettings = () => {
             </div>
 
             {/* Active settings component */}
-            <div style={{ background: "#ffffff", border: "1px solid #E8EDF2", borderRadius: 14, overflow: "hidden" }}>
-              <div style={{ padding: "22px" }}>
-                {ActiveComponent && (
-                  <ActiveComponent
-                    {...(activeButton === "buttonDesign" || activeButton === "tooltipDesign"
-                      ? { buttonSettings, tooltipSettings }
-                      : {})}
-                  />
-                )}
-              </div>
-            </div>
+          <div style={{ background: "#ffffff", border: "1px solid #E8EDF2", borderRadius: 14, overflow: "hidden" }}>
+  <div style={{ padding: "22px" }}>
+    {activeButton === "app" && (
+      <div
+        style={{
+          marginBottom: 20,
+          padding: "18px 20px",
+          border: "1px solid #E8EDF2",
+          borderRadius: 12,
+          background: "#F8FAFC",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <h3
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                color: "#0F172A",
+                margin: "0 0 4px",
+              }}
+            >
+              App Status
+            </h3>
+            <p style={{ fontSize: 13, color: "#64748B", margin: 0 }}>
+              {enabled
+                ? "Catalog to Cart is currently enabled for your store."
+                : "Catalog to Cart is currently disabled for your store."}
+            </p>
+          </div>
+
+          <button
+            onClick={toggleAppStatus}
+            style={{
+              background: enabled ? "#DC2626" : "#1A73E8",
+              color: "#fff",
+              border: "none",
+              borderRadius: 9,
+              padding: "10px 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            {enabled ? "Disable App" : "Enable App"}
+          </button>
+        </div>
+      </div>
+    )}
+
+    {ActiveComponent && (
+      <ActiveComponent
+        {...(activeButton === "buttonDesign" || activeButton === "tooltipDesign"
+          ? { buttonSettings, tooltipSettings }
+          : {})}
+      />
+    )}
+  </div>
+</div>
           </div>
         </div>
       </div>

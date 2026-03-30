@@ -17,11 +17,12 @@ import { pageInformation, PDFVALUES } from "../constants/types";
 import { useDispatch, useSelector } from "react-redux";
 import { addPlan } from "../store/slices/planSlice";
 import DeleteModal from "../components/DeleteModal";
-
+import { PLAN_LIMITS, getPlanLimits, getPlanName, bytesToMB } from "../constants/planLimits";
 // ─── SERVER (logic unchanged) ─────────────────────────────────────────────────
 let valueToFetch = 12;
 const processingStatus: Record<string, number> = {};
 export const action = async ({ request }: ActionFunctionArgs) => {
+
   const { json } = await import("@remix-run/node");
   const { unstable_parseMultipartFormData, unstable_createFileUploadHandler } = await import("@remix-run/node");
   const path = await import("path");
@@ -34,6 +35,57 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const { shop, accessToken } = session;
   if (!accessToken) return;
   if (request.method === "POST" || request.method === "post") {
+     const { data: pricePlan } = await axios.get(
+      `https://${shop}/admin/api/${apiVersion}/recurring_application_charges.json`,
+      {
+        headers: { "X-Shopify-Access-Token": accessToken },
+      },
+    );
+
+    const activePlan = pricePlan?.recurring_application_charges?.find(
+      (charge: any) => charge.status === "active",
+    );
+
+  const planName =
+  activePlan?.name === "Basic"
+    ? "Basic"
+    : activePlan?.name === "Advanced"
+      ? "Advanced"
+      : "Free";
+
+const limits = PLAN_LIMITS[planName];
+const maxCatalogs = limits.catalogs;
+const maxUploadSizeBytes = limits.pdfSizeBytes;
+const maxUploadSizeMB = bytesToMB(maxUploadSizeBytes);
+
+  
+     const countQuery = `
+      query GetPDFCount {
+        shop {
+          metafields(first: 250, namespace: "PDF") {
+            edges {
+              node {
+                id
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const countRes = await admin.graphql(countQuery);
+    const countJson = await countRes.json();
+    const existingCount =
+      countJson?.data?.shop?.metafields?.edges?.length ?? 0;
+
+    if (existingCount >= maxCatalogs) {
+      return json(
+        {
+          error: `Your ${planName} plan allows only ${maxCatalogs} catalog uploads. Please upgrade to upload more PDFs.`,
+        },
+        { status: 403 },
+      );
+    }
     const uploadDir = path.join(process.cwd(), "public", "uploads");
     fs.mkdirSync(uploadDir, { recursive: true });
     let savedFilename = "";
@@ -49,6 +101,17 @@ const { unstable_createMemoryUploadHandler, unstable_composeUploadHandlers } = a
     const formData = await unstable_parseMultipartFormData(request, uploadHandler);
   
     const pdfFile = formData.get("pdf") as any;
+
+    if (pdfFile?.size && Number(pdfFile.size) > maxUploadSizeBytes) {
+  return json(
+    {
+      error: `Your ${planName} plan allows PDF uploads up to ${maxUploadSizeMB} MB.`,
+    },
+    { status: 403 },
+  );
+}
+
+
     if (!pdfFile || !savedFilename) return json({ error: "No file uploaded" }, { status: 400 });
 const rawPdfName = formData.get("pdfName");
 const pdfName: string = (typeof rawPdfName === "string" && rawPdfName.trim())
@@ -331,7 +394,7 @@ function SuccessToast() {
 }
 
 // ─── INLINE UPLOAD ZONE ────────────────────────────────────────────────────────
-function UploadZone({ onFileSelected }: { onFileSelected: (file: File) => void }) {
+function UploadZone({ onFileSelected, maxUploadSizeMB }: { onFileSelected: (file: File) => void; maxUploadSizeMB: number }) {
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -363,7 +426,9 @@ function UploadZone({ onFileSelected }: { onFileSelected: (file: File) => void }
         </svg>
       </div>
       <p style={{ fontSize: 13, fontWeight: 500, color: "#0F172A", margin: "0 0 3px" }}>Drag and drop your PDF here</p>
-      <p style={{ fontSize: 12, color: "#94A3B8", margin: "0 0 14px" }}>or click to browse · max 50 MB</p>
+    <p style={{ fontSize: "12px", color: "#94A3B8", margin: "0 0 14px" }}>
+  or click to browse · max {maxUploadSizeMB} MB
+</p>
       <button
         onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
         style={{ display: "inline-block", background: "#1A73E8", color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
@@ -409,12 +474,18 @@ const PdfConvert = () => {
   const uploadFileRef = useRef<HTMLInputElement>(null);
 const jobIdRef = useRef<string | null>(null);
 
-  const plan = useSelector((s: any) => s.plan.plan);
-  console.log("PLANNN ISSSS", plan);
+const plan = useSelector((s: any) => s.plan.plan);
+console.log("PLANNN ISSSS", plan);
 
+const planName = getPlanName(plan);
+const limits = getPlanLimits(plan);
 
-  const maxCatalogs = plan.name === "Basic" ? 5 : plan.name === "Pro" ? 20 : Infinity;
-  const atLimit = pdfList.length >= maxCatalogs;
+const maxCatalogs = limits.catalogs;
+const maxUploadSizeBytes = limits.pdfSizeBytes;
+const maxUploadSizeMB = bytesToMB(maxUploadSizeBytes);
+
+const atLimit = pdfList.length >= maxCatalogs;
+
 
   // Sync loader data
   useEffect(() => {
@@ -490,12 +561,26 @@ useEffect(() => {
     }
   }, [pollFetcher.data]);
 
-  const handleFileSelected = (file: File) => {
-    setUploadModalFile(file);
-    setUploadModalPhase("preview");
-    setShowUploadModal(true);
-    setConvertStep(0);
-  };
+const handleFileSelected = (file: File) => {
+  if (atLimit) {
+    shopify.toast.show(
+      `Your ${planName} plan allows only ${maxCatalogs} catalog uploads.`,
+    );
+    return;
+  }
+
+  if (file.size > maxUploadSizeBytes) {
+    shopify.toast.show(
+      `Your ${planName} plan allows PDF uploads up to ${maxUploadSizeMB} MB.`,
+    );
+    return;
+  }
+
+  setUploadModalFile(file);
+  setUploadModalPhase("preview");
+  setShowUploadModal(true);
+  setConvertStep(0);
+};
 const handleUploadFromModal = (file: File, name: string) => {
     setUploadModalPhase("progress");
     setConvertedFileName(name);
@@ -608,7 +693,7 @@ const filteredList = pdfList.filter((p) => p.pdfName?.toLowerCase().includes(sea
           <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "12px 16px", marginBottom: 18, display: "flex", alignItems: "center", gap: 10 }}>
             <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" stroke="#D97706" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
             <p style={{ fontSize: 13, color: "#92400E", margin: 0 }}>
-              You've reached your {plan.name} plan limit of {maxCatalogs} catalogs.{" "}
+              You've reached your {planName} plan limit of {maxCatalogs} catalogs.{" "}
               <a href="/app/subscription" style={{ color: "#1A73E8", textDecoration: "none", fontWeight: 500 }}>Upgrade to add more →</a>
             </p>
           </div>
@@ -628,7 +713,10 @@ const filteredList = pdfList.filter((p) => p.pdfName?.toLowerCase().includes(sea
                 </span>
               )}
             </div>
-            <UploadZone onFileSelected={handleFileSelected} />
+          <UploadZone
+  onFileSelected={handleFileSelected}
+  maxUploadSizeMB={maxUploadSizeMB}
+/>
           </div>
         )}
 
@@ -800,7 +888,19 @@ const filteredList = pdfList.filter((p) => p.pdfName?.toLowerCase().includes(sea
         />
       )}
       {showSuccessToast && <SuccessToast />}
-      <input ref={uploadFileRef} type="file" accept=".pdf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f && f.type === "application/pdf") { setUploadModalFile(f); setUploadModalPhase("preview"); } if (e.target) e.target.value = ""; }} />
+    <input
+  ref={uploadFileRef}
+  type="file"
+  accept=".pdf"
+  style={{ display: "none" }}
+  onChange={(e) => {
+    const f = e.target.files?.[0];
+    if (f && f.type === "application/pdf") {
+      handleFileSelected(f);
+    }
+    if (e.target) e.target.value = "";
+  }}
+/>
       {deleteTarget && (
       <DeleteModal active={!!deleteTarget} onClose={() => setDeleteTarget(null)} onDelete={handleDeleteConfirm} count={deleteTarget === "bulk" ? selectedIds.size : 1} />
       )}
