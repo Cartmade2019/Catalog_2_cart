@@ -1,9 +1,13 @@
 FROM node:20-alpine
 
 # Install required Linux packages (including OpenSSL)
-RUN apk add --no-cache openssl ghostscript graphicsmagick python3 make g++
-
-# Set the working directory to /app
+RUN apk add --no-cache \
+    openssl ghostscript graphicsmagick \
+    python3 make g++ \
+    pkgconfig \
+    cairo-dev pango-dev \
+    libjpeg-turbo-dev libpng-dev giflib-dev
+    
 WORKDIR /app
 
 # Copy package files and install dependencies
