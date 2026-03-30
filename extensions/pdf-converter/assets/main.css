@@ -6,13 +6,12 @@
 
 .pdf-body-wrapper {
   margin: 0;
-  padding-top: 5rem;
-  padding-bottom: 5rem;
+  padding-top: 3rem;
+  padding-bottom: 3rem;
   display: flex;
   flex-direction: column;
   gap: 0;
   justify-content: space-between;
-  min-height: 100dvh;
   overflow: hidden;
   border-radius: 8px;
   background: #ebeced;
@@ -22,13 +21,16 @@
 .pdf-body-wrapper .title-wrapper {
   padding-left: 1rem;
   padding-right: 1rem;
+  margin-bottom: 1.5rem;
 }
 
+/* ─── Book container: wide by default, fills most of the section ─── */
 .pdf-main-container .book {
   position: relative;
   display: flex;
   margin: auto;
-  width: 45%;
+  /* Use 80% of the section width so pages are large and readable */
+  width: 80%;
   transform-style: preserve-3d;
   transition: translate 1s;
   translate: calc(min(var(--c), 1) * 50%) 0%;
@@ -61,7 +63,7 @@
   flex: none;
   width: 100%;
   backface-visibility: hidden;
-  /* FIX: overflow must be visible so hotspot pins are not clipped */
+  /* overflow must be visible so hotspot pins are not clipped */
   overflow: visible;
   background-color: #fff;
   translate: 0px;
@@ -90,39 +92,56 @@
 .pdf-main-container .back {
   display: flex;
   flex-flow: column wrap;
-  justify-content: space-between;
-  padding: 2em;
+  justify-content: flex-start;
+  /* No padding when the page has an image — let the image fill the page */
+  padding: 0;
   border: 1px solid #0002;
 
-  &:has(img) {
-    padding: 0;
-  }
-
   & img {
+    /* Fill the full width; height auto preserves aspect ratio — no cropping, no compression */
+    display: block;
     width: 100%;
-    height: 100%;
-    object-fit: cover;
+    height: auto;
+    object-fit: contain;
   }
 
   &::after {
     position: absolute;
-    bottom: 1em;
+    bottom: 0.6em;
     counter-increment: page;
     content: counter(page) ".";
-    font-size: 0.8em;
+    font-size: 0.9em;
   }
 }
+
+/* Cover (back of book) — plain coloured panel */
 .cover {
+  background:
+    radial-gradient(
+      circle farthest-corner at 80% 20%,
+      hsl(150 80% 20% / 0.3) 0%,
+      hsl(170 60% 10% / 0.1) 100%
+    ),
+    hsl(231, 32%, 29%);
+  color: hsl(200 30% 98%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2em;
+
   &::after {
     content: "";
   }
 }
+
+/* The very first front page gets the same rounded-right edge as before */
 .pdf-main-container .front {
   &::after {
     right: 1em;
   }
   border-radius: 0.1em 0.5em 0.5em 0.1em;
 }
+
 .back {
   &::after {
     left: 1em;
@@ -131,17 +150,12 @@
   border-radius: 0.5em 0.1em 0.1em 0.5em;
 }
 
-.cover {
-  background:
-    radial-gradient(
-      circle farthest-corner at 80% 20%,
-      hsl(150 80% 20% / 0.3) 0%,
-      hsl(170 60% 10% / 0.1) 100%
-    ),
-    hsl(231, 32%, 29%) url("https://picsum.photos/id/984/800/900") 50% / cover;
-  color: hsl(200 30% 98%);
+/* Back-cover override: remove the gradient so the colour shows */
+.back.cover {
+  background-image: none;
 }
 
+/* ─── Prev / Next buttons ─── */
 .book-prev-next svg {
   width: 24px;
   height: 24px;
@@ -212,9 +226,7 @@
 }
 
 /* ─── Tooltip popover ───
-   KEY FIX: position:fixed (not absolute) so it escapes the book/page
-   stacking context and always renders centred in the viewport.
-   The reference confirmed this is the correct approach.
+   position:fixed so it escapes the book/page stacking context.
 ─── */
 .custom-popover {
   position: fixed;
@@ -293,12 +305,18 @@
 /* ─── Responsive ─── */
 @media (max-width: 1024px) {
   .pdf-body-wrapper {
-    padding: 3rem;
+    padding: 2rem;
     min-height: 100%;
   }
   .pdf-main-container .book {
-    width: 52%;
+    width: 88%;
     margin: 0 auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .pdf-main-container .book {
+    width: 96%;
   }
 }
 

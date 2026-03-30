@@ -410,7 +410,10 @@ const PdfConvert = () => {
 const jobIdRef = useRef<string | null>(null);
 
   const plan = useSelector((s: any) => s.plan.plan);
-  const maxCatalogs = plan === "Basic" ? 5 : plan === "Pro" ? 20 : Infinity;
+  console.log("PLANNN ISSSS", plan);
+
+
+  const maxCatalogs = plan.name === "Basic" ? 5 : plan.name === "Pro" ? 20 : Infinity;
   const atLimit = pdfList.length >= maxCatalogs;
 
   // Sync loader data
@@ -605,7 +608,7 @@ const filteredList = pdfList.filter((p) => p.pdfName?.toLowerCase().includes(sea
           <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "12px 16px", marginBottom: 18, display: "flex", alignItems: "center", gap: 10 }}>
             <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" stroke="#D97706" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
             <p style={{ fontSize: 13, color: "#92400E", margin: 0 }}>
-              You've reached your {plan} plan limit of {maxCatalogs} catalogs.{" "}
+              You've reached your {plan.name} plan limit of {maxCatalogs} catalogs.{" "}
               <a href="/app/subscription" style={{ color: "#1A73E8", textDecoration: "none", fontWeight: 500 }}>Upgrade to add more →</a>
             </p>
           </div>

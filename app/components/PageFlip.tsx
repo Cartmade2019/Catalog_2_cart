@@ -265,6 +265,7 @@ const PageFlip = ({
                           }
                         >
                           <div
+                          title="Double click to edit"
                             className="image-hotspots--pin z-20 absolute flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse"
                             style={{
                               backgroundColor: hotspotColor || marker.color,
@@ -315,12 +316,14 @@ const PageFlip = ({
                           }
                         >
                           <div
+                          title="Double click to edit"
                             className="image-hotspots--pin z-20  absolute flex justify-center items-center  text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse"
                             style={{
                               backgroundColor: hotspotColor || marker.color,
                               top: `${marker.yPercentage}%`,
                               left: `${marker.xPercentage}%`,
                             }}
+                    
                             onDoubleClick={() => {
                               handleMarkerClick(marker);
                               setSettings({

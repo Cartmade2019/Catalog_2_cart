@@ -81,18 +81,30 @@ padding-bottom: {{ block.settings.padding_bottom }}px;
                 </h2>
             </div>
             <div class="book">
-                <div class="page">
 
-                    <div class="front cover">
-                        {{ pdfData.pdfName }}
-                    </div>
-                    <div class="back">
-                        <img src="{{ pdfData.images[0].url }}" alt="Img 1">
-                        {% assign points = pdfData.images[0].points %}
+                {% comment %}
+                  Page structure: each .page contains a .front and a .back.
+                  We pair PDF images: page 0 → first .page front, page 1 → first .page back,
+                  page 2 → second .page front, page 3 → second .page back, etc.
+                  The first page of the PDF is shown immediately as the opening spread.
+                  No static decorative cover — the actual PDF page 0 is the cover.
+                {% endcomment %}
+
+                {% assign index = 0 %}
+
+                {% for pair in (1..array_length) %}
+                  {% assign frontIndex = index %}
+                  {% assign backIndex  = index | plus: 1 %}
+
+                  <div class="page">
+
+                    <div class="front {% if forloop.first %}cover-page{% endif %} relative">
+                      {% if frontIndex < array_length %}
+                        <img src="{{ pdfData.images[frontIndex].url }}" alt="Page {{ frontIndex | plus: 1 }}">
+                        {% assign points = pdfData.images[frontIndex].points %}
                         {% for point in points %}
-                        <div data-id="hotspot-0-{{forloop.index}}"
-                            class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage }}%] image-hotspots--pin z-20 absolute flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse ">
-
+                        <div data-id="hotspot-{{frontIndex}}-{{forloop.index}}"
+                            class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage}}%] image-hotspots--pin z-20 absolute flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse ">
                             <div className="image-hotspots--pin-button hotspot--pinned active">
                                 <svg data-name="Component 30 – 2" xmlns="http://www.w3.org/2000/svg" width="25"
                                     height="25" viewBox="0 0 25 25">
@@ -104,82 +116,46 @@ padding-bottom: {{ block.settings.padding_bottom }}px;
                                 </svg>
                             </div>
                         </div>
+                        {% endfor %}
+                      {% endif %}
+                    </div>
 
+                    {% if backIndex < array_length %}
+                    <div class="back relative">
+                        <img src="{{ pdfData.images[backIndex].url }}" alt="Page {{ backIndex | plus: 1 }}">
+                        {% assign points = pdfData.images[backIndex].points %}
+                        {% for point in points %}
+                        <div data-id="hotspot-{{backIndex}}-{{forloop.index}}"
+                            class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage}}%] image-hotspots--pin z-20 absolute flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse ">
+                            <div className="image-hotspots--pin-button hotspot--pinned active">
+                                <svg data-name="Component 30 – 2" xmlns="http://www.w3.org/2000/svg" width="25"
+                                    height="25" viewBox="0 0 25 25">
+                                    <g id="Rectangle_1123" data-name="Rectangle 1123" fill="none" stroke="#F1EFED"
+                                        stroke-width="9" className="">
+                                        <rect width="25" height="25" rx="12.5" stroke="none"></rect>
+                                        <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none"></rect>
+                                    </g>
+                                </svg>
+                            </div>
+                        </div>
                         {% endfor %}
                     </div>
-
-
-                </div>
-
-                {% assign index = 1 %}
-
-                {% for x in (1..array_length) %}
-
-                {% assign nextIndex = index | plus: 1 %}
-
-                <div class="page">
-
-                    <div class="front relative">
-                        {% if index < array_length %} <img src="{{ pdfData.images[index].url }}" alt="Img {{ index }}">
-                            {% assign points = pdfData.images[index].points %}
-
-                            {% for point in points %}
-
-                            <div data-id="hotspot-{{index}}-{{forloop.index}}"
-                                class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage }}%] image-hotspots--pin z-20 absolute flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse ">
-
-                                <div className="image-hotspots--pin-button hotspot--pinned active">
-                                    <svg data-name="Component 30 – 2" xmlns="http://www.w3.org/2000/svg" width="25"
-                                        height="25" viewBox="0 0 25 25">
-                                        <g id="Rectangle_1123" data-name="Rectangle 1123" fill="none" stroke="#F1EFED"
-                                            stroke-width="9" className="">
-                                            <rect width="25" height="25" rx="12.5" stroke="none"></rect>
-                                            <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none"></rect>
-                                        </g>
-                                    </svg>
-                                </div>
-                            </div>
-                            {% endfor %}
-
-                            {% else %}
-
-                            <img src="https://i.pinimg.com/736x/bd/06/62/bd06625e8321081fd66ad0f333a35615.jpg"
-                                alt="Pdf">
-                            {% endif %}
-                    </div>
-
-                    {% if nextIndex >= array_length %}
-
+                    {% else %}
                     <div class="back cover">
-                        <p>Back COver</p>
+                        <p>{{ pdfData.pdfName }}</p>
                     </div>
-                    {% break %}
                     {% endif %}
 
-                    <div class="back">
-                        <img src="{{ pdfData.images[nextIndex].url }}" alt="Img {{ index }}">
-                        {% assign points = pdfData.images[nextIndex].points %}
+                  </div>
 
-                        {% for point in points %}
-                        <div data-id="hotspot-{{nextIndex}}-{{forloop.index}}"
-                            class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage }}%] image-hotspots--pin z-20 absolute flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse ">
+                  {% comment %} Advance by 2 images per page spread {% endcomment %}
+                  {% assign index = backIndex | plus: 1 %}
 
-                            <div className="image-hotspots--pin-button hotspot--pinned active">
-                                <svg data-name="Component 30 – 2" xmlns="http://www.w3.org/2000/svg" width="25"
-                                    height="25" viewBox="0 0 25 25">
-                                    <g id="Rectangle_1123" data-name="Rectangle 1123" fill="none" stroke="#F1EFED"
-                                        stroke-width="9" className="">
-                                        <rect width="25" height="25" rx="12.5" stroke="none"></rect>
-                                        <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none"></rect>
-                                    </g>
-                                </svg>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% assign index = nextIndex | plus:1 %}
+                  {% comment %} Stop once we've consumed all images {% endcomment %}
+                  {% if index >= array_length %}{% break %}{% endif %}
+
                 {% endfor %}
+
             </div>
         </div>
     </div>
