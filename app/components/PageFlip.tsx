@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Draggable from "react-draggable";
 import { useFetcher } from "@remix-run/react";
 import { IMAGES, Marker } from "../constants/types";
+import { getPlanLimits, getPlanName } from "../constants/planLimits";
 import {
   BlockStack,
   Button,
@@ -28,11 +29,14 @@ const PageFlip = ({
   metaFieldId,
   pdfName,
   shopName,
+  planName,
   hotspotColor,
-}: IMAGES) => {
+}: IMAGES& { planName?: string }) => {
   const fetcher = useFetcher();
 
-  const plan = useSelector((state: any) => state.plan.plan);
+const plan = useSelector((state: any) => state.plan.plan);
+const currentPlan = planName ?? getPlanName(plan);
+const limits = getPlanLimits({ name: currentPlan });
   const colorPalette = [
     "#FF5733",
     "#FF8D1A",
@@ -52,6 +56,13 @@ const PageFlip = ({
         image.points.filter((point: Marker | undefined) => point !== undefined),
       ),
   );
+const initialMarkersRef = useRef<Marker[]>(
+  images
+    .filter((image: any) => image?.points?.length > 0)
+    .flatMap((image: any) =>
+      image.points.filter((point: Marker | undefined) => point !== undefined),
+    ),
+);
 
   const [selectedMarker, setSelectedMarker] = useState<Marker | null>(null);
 
@@ -88,31 +99,32 @@ const PageFlip = ({
   ) => {
     if (!ref.current) return;
 
-    let maxMarkers = 0;
-    if (plan === "Free") {
-      maxMarkers = 3;
-    } else if (plan === "Basic") {
-      maxMarkers = 3;
-    } else if (plan === "Advanced") {
-      maxMarkers = Infinity;
-    }
+const currentMarkersForPage = markers.filter(
+  (marker) => marker.imageIndex === imageIndex,
+);
+const totalMarkers = markers.length;
 
-    const currentMarkersForPage = markers.filter(
-      (marker) => marker.imageIndex === imageIndex,
-    );
-    const totalMarkers = markers.length;
+if (
+  limits.hotspotsTotal !== null &&
+  totalMarkers >= limits.hotspotsTotal
+) {
+  shopify.toast.show(
+    `${currentPlan} plan allows only ${limits.hotspotsTotal} total hotspots.`,
+  );
+  return;
+}
 
-    if (plan === "Free" && totalMarkers >= maxMarkers) {
-      shopify.toast.show(
-        "You have reached the maximum marker limit for your plan.",
-      );
-      return;
-    }
-
-    if (plan === "Basic" && currentMarkersForPage.length >= maxMarkers) {
-      shopify.toast.show("You can only add 3 markers per page for your plan.");
-      return;
-    }
+if (
+  limits.hotspotsPerPage !== null &&
+  limits.hotspotsPerPage !== Infinity &&
+  currentMarkersForPage.length >= limits.hotspotsPerPage
+) {
+  shopify.toast.show(
+    `${currentPlan} plan allows only ${limits.hotspotsPerPage} hotspots per page.`,
+  );
+  return;
+}
+// Advanced = unlimited
     const rect = ref.current.getBoundingClientRect();
 
     const x = event.clientX - rect.left;
@@ -200,13 +212,25 @@ const PageFlip = ({
       );
       image.points = [...imageMarkers];
     });
-
+    initialMarkersRef.current = markers.map((marker) => ({
+  ...marker,
+}));
     const formData = new FormData();
     formData.append("images", JSON.stringify(images));
     formData.append("metaFieldId", metaFieldId);
     formData.append("pdfName", pdfName);
     fetcher.submit(formData, { method: "post" });
   };
+
+  const handleClearUnsavedHotspots = () => {
+  setMarkers(
+    initialMarkersRef.current.map((marker) => ({
+      ...marker,
+    })),
+  );
+  setSelectedMarker(null);
+  shopify.toast.show("Unsaved hotspots cleared");
+};
 
   if (fetcher.state === "loading") {
     shopify.toast.show("Product saved");
@@ -220,18 +244,66 @@ const PageFlip = ({
   return (
   <div style={{ width: "100%" }}>
       <div style={{ width: "100%" }}>
-      <div style={{ padding: "16px 20px", display: "flex", justifyContent: "flex-end" }}>
-        <button
-          onClick={handleSave}
-          disabled={fetcher.state === "submitting"}
-          style={{ background: "#1A73E8", color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", fontSize: 13, fontWeight: 600, cursor: fetcher.state === "submitting" ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, opacity: fetcher.state === "submitting" ? 0.7 : 1 }}
-        >
-          {fetcher.state === "submitting" && (
-            <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
-          )}
-          {fetcher.state === "submitting" ? "Saving…" : "Save hotspots"}
-        </button>
-      </div>
+    <div
+  style={{
+    padding: "16px 20px",
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: 10,
+  }}
+>
+  <button
+    onClick={handleClearUnsavedHotspots}
+    disabled={fetcher.state === "submitting"}
+    style={{
+      background: "#fff",
+      color: "#DC2626",
+      border: "1px solid #FECACA",
+      borderRadius: 8,
+      padding: "8px 20px",
+      fontSize: 13,
+      fontWeight: 600,
+      cursor: fetcher.state === "submitting" ? "not-allowed" : "pointer",
+      opacity: fetcher.state === "submitting" ? 0.7 : 1,
+    }}
+  >
+    Clear all
+  </button>
+
+  <button
+    onClick={handleSave}
+    disabled={fetcher.state === "submitting"}
+    style={{
+      background: "#1A73E8",
+      color: "#fff",
+      border: "none",
+      borderRadius: 8,
+      padding: "8px 20px",
+      fontSize: 13,
+      fontWeight: 600,
+      cursor: fetcher.state === "submitting" ? "not-allowed" : "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      opacity: fetcher.state === "submitting" ? 0.7 : 1,
+    }}
+  >
+    {fetcher.state === "submitting" && (
+      <span
+        style={{
+          display: "inline-block",
+          width: 14,
+          height: 14,
+          border: "2px solid rgba(255,255,255,0.3)",
+          borderTopColor: "#fff",
+          borderRadius: "50%",
+          animation: "spin 0.6s linear infinite",
+        }}
+      />
+    )}
+    {fetcher.state === "submitting" ? "Saving…" : "Save hotspots"}
+  </button>
+</div>
       <div>
           <div>
           <div
