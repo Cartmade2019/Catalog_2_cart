@@ -2,11 +2,6 @@
   'use strict';
 
   /* ─────────────────────────────────────────
-     Config
-  ───────────────────────────────────────── */
-  const PRELOAD_WINDOW = 2; // load current page ± this many pages
-
-  /* ─────────────────────────────────────────
      Helpers
   ───────────────────────────────────────── */
   function closeAllPopovers() {
@@ -69,6 +64,7 @@
 
     if (!submitBtn) return;
 
+    // Replace with a fresh clone so old click handlers don't accumulate
     const freshBtn = submitBtn.cloneNode(true);
     submitBtn.replaceWith(freshBtn);
 
@@ -109,6 +105,7 @@
     cartPopup.classList.remove('hidden');
     cartPopup.classList.add('flex');
 
+    // { once: true } ensures these never stack up across multiple cart adds
     document.getElementById('close-popup')
       ?.addEventListener('click', hideCartPopup, { once: true });
     document.getElementById('continue-shopping')
@@ -123,60 +120,6 @@
   }
 
   /* ─────────────────────────────────────────
-     Image lazy-load manager
-     - Stores the real src in data-src on every img at startup
-     - Only restores src for pages within the load window
-     - Clears src for pages that fall outside the window
-  ───────────────────────────────────────── */
-  function buildImageRegistry(elBook) {
-    // Map: pageIndex → array of { img, originalSrc }
-    const registry = new Map();
-
-    const pages = elBook.querySelectorAll('.page');
-    pages.forEach(function (page, pageIdx) {
-      const imgs = page.querySelectorAll('img');
-      const entries = [];
-      imgs.forEach(function (img) {
-        const src = img.getAttribute('src') || '';
-        if (src) {
-          // Move the real src into data-src so we control when it loads
-          img.setAttribute('data-src', src);
-          img.removeAttribute('src');
-          // Reserve space so the page doesn't collapse (avoids layout shift)
-          img.style.minHeight = '400px';
-          img.style.background = '#f0f0f0';
-        }
-        entries.push({ img: img, src: src });
-      });
-      registry.set(pageIdx, entries);
-    });
-
-    return registry;
-  }
-
-  function updateImageWindow(registry, currentPage) {
-    registry.forEach(function (entries, pageIdx) {
-      const inWindow = Math.abs(pageIdx - currentPage) <= PRELOAD_WINDOW;
-      entries.forEach(function (entry) {
-        if (!entry.src) return;
-        if (inWindow) {
-          // Restore the src so the browser fetches it
-          if (!entry.img.getAttribute('src')) {
-            entry.img.setAttribute('src', entry.src);
-            entry.img.style.minHeight = '';
-            entry.img.style.background = '';
-          }
-        } else {
-          // Clear the src to free memory for distant pages
-          entry.img.removeAttribute('src');
-          entry.img.style.minHeight = '400px';
-          entry.img.style.background = '#f0f0f0';
-        }
-      });
-    });
-  }
-
-  /* ─────────────────────────────────────────
      FlipBook
   ───────────────────────────────────────── */
   const flipBook = function (elBook) {
@@ -184,14 +127,9 @@
     const pages      = elBook.querySelectorAll('.page');
     const totalPages = pages.length;
 
-    // Build lazy registry before touching any page
-    const imageRegistry = buildImageRegistry(elBook);
-
     const updatePage = function (newPage) {
       currentPage = Math.max(0, Math.min(newPage, totalPages - 1));
       elBook.style.setProperty('--c', currentPage);
-      // Update which images are loaded
-      updateImageWindow(imageRegistry, currentPage);
       // Close any open popover whenever the page turns
       closeAllPopovers();
     };
@@ -206,7 +144,6 @@
     if (prevBtn) prevBtn.addEventListener('click', function () { updatePage(currentPage - 1); });
     if (nextBtn) nextBtn.addEventListener('click', function () { updatePage(currentPage + 1); });
 
-    // Load the first window immediately
     updatePage(0);
   };
 
