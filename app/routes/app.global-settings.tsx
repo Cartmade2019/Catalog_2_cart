@@ -271,10 +271,10 @@ const [enabled, setEnabled] = useState(
             <div style={{ margin: "8px", padding: "14px", background: "linear-gradient(135deg, #F8FAFC, #F1F5F9)", borderRadius: 10, border: "1px solid #E2E8F0" }}>
               <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", margin: "0 0 4px" }}>Need help?</p>
               <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 10px", lineHeight: 1.5 }}>Changes apply globally across all your catalogs.</p>
-              <a href="#" style={{ fontSize: 12, color: "#1A73E8", textDecoration: "none", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <Link to="/app/home" style={{ fontSize: 12, color: "#1A73E8", textDecoration: "none", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4 }}>
                 View docs
                 <svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              </a>
+              </Link>
             </div>
           </div>
 

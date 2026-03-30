@@ -196,13 +196,13 @@ const DetailPage = () => {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <a href="/app/global-settings" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#F8FAFC", color: "#374151", border: "1px solid #E2E8F0", borderRadius: 9, padding: "9px 16px", fontSize: 13, fontWeight: 500, textDecoration: "none", cursor: "pointer", transition: "border-color 0.15s" }}
+              <Link to="/app/global-settings" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#F8FAFC", color: "#374151", border: "1px solid #E2E8F0", borderRadius: 9, padding: "9px 16px", fontSize: 13, fontWeight: 500, textDecoration: "none", cursor: "pointer", transition: "border-color 0.15s" }}
                 onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#9CA3AF")}
                 onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#E2E8F0")}
               >
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" strokeWidth="1.75" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" strokeWidth="1.75" /></svg>
                 Global settings
-              </a>
+              </Link>
             </div>
           </div>
         </div>
