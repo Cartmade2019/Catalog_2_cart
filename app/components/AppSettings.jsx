@@ -9,10 +9,9 @@ import {
 
 const AppSettings = () => {
   const [enabled, setEnabled] = useState(true);
-``
+  ``;
   const toggleAppStatus = () => {
     setEnabled((prevState) => !prevState);
-
   };
 
   return (
