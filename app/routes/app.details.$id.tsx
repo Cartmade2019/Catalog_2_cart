@@ -6,6 +6,10 @@ import {
   LoaderFunctionArgs,
   useLoaderData,
 } from "react-router";
+
+import { Link } from "@remix-run/react";
+
+
 import PageFlip from "../components/PageFlip";
 
 // ── Loader ────────────────────────────────────────────────────────────────────
@@ -13,8 +17,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { authenticate } = await import("../shopify.server");
   const url = new URL(request.url);
   const id = url.pathname.split("/").pop();
-  const { admin, session: { shop } } = await authenticate.admin(request);
-
+const { admin, session } = await authenticate.admin(request);
+const { shop, accessToken } = session;
   const metafieldId = `gid://shopify/Metafield/${id}`;
 
   const META_FIELD_QUERY = `
@@ -45,6 +49,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const buttonSettings = buttonResponse?.data?.shop?.metafield;
   const hotspotColor = buttonSettings?.jsonValue?.hotspotColor;
 
+
+  const axios = (await import("axios")).default;
+const { apiVersion } = await import("../shopify.server");
+
+const { data: pricePlan } = await axios.get(
+  `https://${shop}/admin/api/${apiVersion}/recurring_application_charges.json`,
+  {
+    headers: {
+      "X-Shopify-Access-Token": accessToken,
+    },
+  },
+);
+
+const activePlan = pricePlan?.recurring_application_charges?.find(
+  (charge: any) => charge.status === "active",
+);
+
+const planName = activePlan?.name ?? "Free";
+
+
   try {
     const { data } = await response.json();
     if (!data) return { error: "Pdf not found." };
@@ -54,7 +78,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       pdfName: data.node.jsonValue.pdfName,
       images: data.node.jsonValue.images,
     };
-    return json({ pdfData, shop, hotspotColor });
+    return json({ pdfData, shop, hotspotColor ,planName});
   } catch (error) {
     return { error: "Unexpected error occurred while fetching metafield." };
   }
@@ -75,14 +99,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return { error: "Invalid image data. Please upload valid images.", images, pdfName };
     }
 
-    const metafield = new admin.rest.resources.Metafield({ session });
-    metafield.id = id;
-    metafield.value = JSON.stringify({
-      pdfName: pdfName || "Undefined",
-      images: JSON.parse(images) || [],
-    });
-    metafield.type = "json";
-    await metafield.save({ update: true });
+    const existingMetafield = await admin.rest.resources.Metafield.find({
+  session,
+  id,
+});
+
+const existingValue =
+  typeof existingMetafield.value === "string"
+    ? JSON.parse(existingMetafield.value)
+    : existingMetafield.value || {};
+
+const metafield = new admin.rest.resources.Metafield({ session });
+metafield.id = id;
+metafield.value = JSON.stringify({
+  ...existingValue,
+  pdfName: pdfName || existingValue.pdfName || "Undefined",
+  images: JSON.parse(images) || [],
+});
+metafield.type = "json";
+await metafield.save({ update: true });
 
     if (!metafield) return { error: "Failed to save metafield" };
     return { success: true, message: "metafield updated successfully", metafield };
@@ -94,7 +129,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 const DetailPage = () => {
   const loaderData: any = useLoaderData();
   const { pdfData } = loaderData;
-
   if (loaderData?.error) {
     return (
       <div style={{ minHeight: "100vh", backgroundColor: "#F8FAFC", fontFamily: "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -104,10 +138,10 @@ const DetailPage = () => {
           </div>
           <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A", margin: "0 0 8px" }}>Catalog not found</h2>
           <p style={{ fontSize: 14, color: "#64748B", margin: "0 0 20px", lineHeight: 1.6 }}>{loaderData.error}</p>
-          <a href="/app/pdf-convert" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #1A73E8, #1557b0)", color: "#fff", textDecoration: "none", borderRadius: 9, padding: "10px 20px", fontSize: 14, fontWeight: 600 }}>
+          <Link to="/app/pdf-convert" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #1A73E8, #1557b0)", color: "#fff", textDecoration: "none", borderRadius: 9, padding: "10px 20px", fontSize: 14, fontWeight: 600 }}>
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
             Back to catalogs
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -127,13 +161,13 @@ const DetailPage = () => {
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           {/* Breadcrumb */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <a href="/app/pdf-convert" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "#64748B", textDecoration: "none", fontWeight: 500, transition: "color 0.15s" }}
+            <Link to="/app/pdf-convert" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "#64748B", textDecoration: "none", fontWeight: 500, transition: "color 0.15s" }}
               onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.color = "#1A73E8")}
               onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.color = "#64748B")}
             >
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
               PDF Catalogs
-            </a>
+            </Link>
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" stroke="#CBD5E1" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
             <span style={{ fontSize: 13, color: "#0F172A", fontWeight: 500 }}>{pdfData?.pdfName || "Catalog Editor"}</span>
           </div>
@@ -162,13 +196,13 @@ const DetailPage = () => {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <a href="/app/global-settings" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#F8FAFC", color: "#374151", border: "1px solid #E2E8F0", borderRadius: 9, padding: "9px 16px", fontSize: 13, fontWeight: 500, textDecoration: "none", cursor: "pointer", transition: "border-color 0.15s" }}
+              <Link to="/app/global-settings" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#F8FAFC", color: "#374151", border: "1px solid #E2E8F0", borderRadius: 9, padding: "9px 16px", fontSize: 13, fontWeight: 500, textDecoration: "none", cursor: "pointer", transition: "border-color 0.15s" }}
                 onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#9CA3AF")}
                 onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#E2E8F0")}
               >
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" strokeWidth="1.75" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" strokeWidth="1.75" /></svg>
                 Global settings
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -220,6 +254,7 @@ const DetailPage = () => {
             metaFieldId={pdfData.id}
             shopName={loaderData.shop}
             hotspotColor={loaderData.hotspotColor}
+            planName={loaderData.planName}
           />
         </div>
 
@@ -233,13 +268,13 @@ const DetailPage = () => {
             <div style={{ width: 1, height: 16, background: "#E2E8F0" }} />
             <span style={{ fontSize: 12, color: "#64748B" }}>Click on any page to add a hotspot pin</span>
           </div>
-          <a href="/app/pdf-convert" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "#64748B", textDecoration: "none", fontWeight: 500 }}
+          <Link to="/app/pdf-convert" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "#64748B", textDecoration: "none", fontWeight: 500 }}
             onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.color = "#1A73E8")}
             onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.color = "#64748B")}
           >
             <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
             Back to all catalogs
-          </a>
+          </Link>
         </div>
       </div>
     </div>

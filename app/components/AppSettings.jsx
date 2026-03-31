@@ -9,7 +9,7 @@ import {
 
 const AppSettings = () => {
   const [enabled, setEnabled] = useState(true);
-
+  ``;
   const toggleAppStatus = () => {
     setEnabled((prevState) => !prevState);
   };
@@ -29,7 +29,7 @@ const AppSettings = () => {
         </Card>
       </div>
 
-      <div className="mb-8 px-6 py-4 bg-white shadow-md rounded-lg">
+      {/* <div className="mb-8 px-6 py-4 bg-white shadow-md rounded-lg">
         <Card title="App Status" sectioned>
           <TextContainer>
             <p className="text-lg font-medium text-gray-800">
@@ -51,7 +51,7 @@ const AppSettings = () => {
             </Button>
           </FormLayout>
         </Card>
-      </div>
+      </div> */}
 
       {/* <div className="mb-8 px-6 py-4 bg-white shadow-md rounded-lg">
         <Card sectioned>
