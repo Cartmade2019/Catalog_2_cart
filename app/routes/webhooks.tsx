@@ -41,5 +41,4 @@ export const action: ActionFunction = async ({ request }) => {
       throw new Response("Unhandled webhook topic", { status: 404 });
   }
 
-  throw new Response();
 };
