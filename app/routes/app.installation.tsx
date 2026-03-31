@@ -400,7 +400,7 @@ const Installation = () => {
             <p style={{ margin: 0, fontSize: 14, color: "#64748B" }}>Check the FAQ below, or reach out — we typically respond within a few hours.</p>
           </div>
           <a
-            href="mailto:support@example.com"
+            href="mailto:support@autofitai.app"
             className="ghostBtn"
             style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#fff", color: "#374151", border: "1px solid #D1D5DB", borderRadius: 9, padding: "10px 18px", fontSize: 14, fontWeight: 500, textDecoration: "none", whiteSpace: "nowrap", transition: "border-color 0.15s, color 0.15s" }}
           >

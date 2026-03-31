@@ -6,8 +6,14 @@ import {
   shopifyApp,
 } from "@shopify/shopify-app-remix/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
-import { restResources } from "@shopify/shopify-api/rest/admin/2024-07";
+
 import prisma from "./db.server";
+
+import { restResources } from "@shopify/shopify-api/rest/admin/2025-10";
+
+import { notifySupabaseEvent } from "./utils/supabase-email.server";
+import { getShopData } from "./utils/shopify-shop-data.server";
+import { getInstallState, setInstallState } from "./utils/install-state-metafield.server";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
