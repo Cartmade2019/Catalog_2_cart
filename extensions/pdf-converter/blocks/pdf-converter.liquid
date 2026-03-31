@@ -1,257 +1,247 @@
 {{ 'https://cdn.tailwindcss.com' | script_tag }}
-
-
 {{ 'main.css' | asset_url | stylesheet_tag }}
+
 {% assign pdfMetafields = shop.metafields.PDF %}
 {% assign buttonHotspot = shop.metafields.cartmade['cod_button_settings'] %}
 {% assign tooltipHotspot = shop.metafields.cartmade['cod_tooltip_settings'] %}
 {% assign pdfMetafield = pdfMetafields[block.settings.metafield_key] %}
-{% assign pdfData = pdfMetafield.value | parse_json %}
-{% assign buttonData = buttonHotspot.value | parse_json %}
-{% assign toolTipData = tooltipHotspot.value | parse_json %}
+{% assign pdfData = pdfMetafield.value %}
+{% assign buttonData = buttonHotspot.value %}
+{% assign toolTipData = tooltipHotspot.value %}
 
 {% assign array_length = pdfData.images | size %}
 {% assign images = pdfData.images %}
-{% assign points = images.points %}
 
 {% for image in images %}
-{% assign pageIndex = forloop.index | minus: 1 %}
-{% for point in image.points %}
-{% assign hotSpotIndex = forloop.index %}
-{% comment %} {{point.handle}} {% endcomment %}
-{% render 'tooltip', data_page_index: pageIndex, data_hotspot_index:hotSpotIndex, buttonData:buttonData,
-tooltipData:toolTipData,
-handle:point.handle %}
-{% endfor %}
+  {% assign pageIndex = forloop.index | minus: 1 %}
+  {% for point in image.points %}
+    {% assign hotSpotIndex = forloop.index %}
+    {% render 'tooltip', 
+      data_page_index: pageIndex, 
+      data_hotspot_index: hotSpotIndex, 
+      buttonData: buttonData,
+      tooltipData: toolTipData,
+      handle: point.handle 
+    %}
+  {% endfor %}
 {% endfor %}
 
 {%- style -%}
-.section-{{ block.id }}-padding {
-padding-top: {{ block.settings.padding_top | times: 0.75 | round: 0 }}px;
-padding-bottom: {{ block.settings.padding_bottom | times: 0.75 | round: 0 }}px;
-}
-
-@media screen and (min-width: 750px) {
-.section-{{ block.id }}-padding {
-padding-top: {{ block.settings.padding_top }}px;
-padding-bottom: {{ block.settings.padding_bottom }}px;
-}
-}
+  .section-{{ block.id }}-padding {
+    padding-top: {{ block.settings.padding_top | times: 0.75 | round: 0 }}px;
+    padding-bottom: {{ block.settings.padding_bottom | times: 0.75 | round: 0 }}px;
+  }
+  @media screen and (min-width: 750px) {
+    .section-{{ block.id }}-padding {
+      padding-top: {{ block.settings.padding_top }}px;
+      padding-bottom: {{ block.settings.padding_bottom }}px;
+    }
+  }
 {%- endstyle -%}
-<div id="cart-popup" class="fixed inset-0  items-center justify-center bg-black bg-opacity-50 hidden z-50">
-    <div class="bg-white rounded-lg p-8 w-2/3 max-w-4xl shadow-2xl relative">
-        <!-- Close button -->
-        <button id="close-popup" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 focus:outline-none">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                class="w-6 h-6">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-        </button>
 
-        <!-- Content -->
-        <div class="text-center">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">
-                🎉 Product Added to Your Cart!
-            </h2>
-            <p class="text-gray-600 mb-8">
-                The product has been successfully added to your cart. You can continue shopping or proceed to checkout.
-            </p>
-            <div class="flex justify-center gap-4">
-                <a href="/cart"
-                    class="px-6 py-3 bg-green-500 text-white rounded-lg shadow-lg hover:bg-green-600 transition">
-                    Go to Cart
-                </a>
-                <button id="continue-shopping"
-                    class="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg shadow-lg hover:bg-gray-300 transition">
-                    Continue Shopping
-                </button>
-            </div>
-        </div>
+<!-- Cart Success Popup -->
+<div id="cart-popup" class="fixed inset-0 items-center justify-center bg-black bg-opacity-50 hidden z-50">
+  <div class="bg-white rounded-2xl p-8 w-2/3 max-w-md shadow-2xl relative">
+    <button id="close-popup" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="w-6 h-6">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+    <div class="text-center">
+      <h2 class="text-2xl font-bold text-gray-800 mb-4">🎉 Product Added to Your Cart!</h2>
+      <p class="text-gray-600 mb-8">The product has been successfully added to your cart.</p>
+      <div class="flex justify-center gap-4">
+        <a href="{{ routes.cart_url }}" class="px-6 py-3 bg-green-500 text-white rounded-xl shadow-lg hover:bg-green-600 transition">Go to Cart</a>
+        <button id="continue-shopping" class="px-6 py-3 bg-gray-200 text-gray-800 rounded-xl shadow-lg hover:bg-gray-300 transition">Continue Shopping</button>
+      </div>
     </div>
+  </div>
 </div>
 
-
+<!-- Main Flipbook Section -->
 <div class="relative">
-    <div class="pdf-main-container section-{{ block.id }}-padding relative">
-        <div class="pdf-body-wrapper">
-            <div class="title-wrapper">
-                <h2 class="inline-richtext h1 scroll-trigger animate--slide-in" data-cascade=""
-                    style="--animation-order: 0;">
-                    {{ pdfData.pdfName }}
-                </h2>
+  <div class="pdf-main-container section-{{ block.id }}-padding relative">
+    <div class="pdf-body-wrapper">
+  
+      <!-- Book Container -->
+      <div class="book-container">
+        <div class="book">
+          <!-- PAGE SPREAD 0: COVER (Front Cover + First Page Back) -->
+          <div class="page">
+            <div class="front cover">
+              <div class="cover-content">
+                <h1 class="text-4xl font-bold text-white">{{ pdfData.pdfName }}</h1>
+                <p class="text-white/80 mt-4">Interactive Flipbook</p>
+              </div>
             </div>
-            <div class="book">
-                <div class="page">
-
-                    <div class="front cover">
-                        {{ pdfData.pdfName }}
-                    </div>
-                    <div class="back">
-                        <img src="{{ pdfData.images[0].url }}" alt="Img 1">
-                        {% assign points = pdfData.images[0].points %}
-                        {% for point in points %}
-                        <div data-id="hotspot-0-{{forloop.index}}"
-                            class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage }}%] image-hotspots--pin z-20 absolute flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse ">
-
-                            <div className="image-hotspots--pin-button hotspot--pinned active">
-                                <svg data-name="Component 30 – 2" xmlns="http://www.w3.org/2000/svg" width="25"
-                                    height="25" viewBox="0 0 25 25">
-                                    <g id="Rectangle_1123" data-name="Rectangle 1123" fill="none" stroke="#F1EFED"
-                                        stroke-width="9" className="">
-                                        <rect width="25" height="25" rx="12.5" stroke="none"></rect>
-                                        <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none"></rect>
-                                    </g>
-                                </svg>
-                            </div>
-                        </div>
-
-                        {% endfor %}
-                    </div>
-
-
+            <div class="back">
+              <img src="{{ pdfData.images[0].url }}" alt="Page 1">
+              {% assign points = pdfData.images[0].points %}
+              {% for point in points %}
+                <div data-id="hotspot-0-{{forloop.index}}"
+                     class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse">
+                  <div class="image-hotspots--pin-button hotspot--pinned active">
+                    <svg width="25" height="25" viewBox="0 0 25 25" fill="none">
+                      <rect width="25" height="25" rx="12.5" stroke="#F1EFED" stroke-width="9"/>
+                      <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none" stroke="#F1EFED" stroke-width="9"/>
+                    </svg>
+                  </div>
                 </div>
-
-                {% assign index = 1 %}
-
-                {% for x in (1..array_length) %}
-
-                {% assign nextIndex = index | plus: 1 %}
-
-                <div class="page">
-
-                    <div class="front relative">
-                        {% if index < array_length %} <img src="{{ pdfData.images[index].url }}" alt="Img {{ index }}">
-                            {% assign points = pdfData.images[index].points %}
-
-                            {% for point in points %}
-
-                            <div data-id="hotspot-{{index}}-{{forloop.index}}"
-                                class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage }}%] image-hotspots--pin z-20 absolute flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse ">
-
-                                <div className="image-hotspots--pin-button hotspot--pinned active">
-                                    <svg data-name="Component 30 – 2" xmlns="http://www.w3.org/2000/svg" width="25"
-                                        height="25" viewBox="0 0 25 25">
-                                        <g id="Rectangle_1123" data-name="Rectangle 1123" fill="none" stroke="#F1EFED"
-                                            stroke-width="9" className="">
-                                            <rect width="25" height="25" rx="12.5" stroke="none"></rect>
-                                            <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none"></rect>
-                                        </g>
-                                    </svg>
-                                </div>
-                            </div>
-                            {% endfor %}
-
-                            {% else %}
-
-                            <img src="https://i.pinimg.com/736x/bd/06/62/bd06625e8321081fd66ad0f333a35615.jpg"
-                                alt="Pdf">
-                            {% endif %}
-                    </div>
-
-                    {% if nextIndex >= array_length %}
-
-                    <div class="back cover">
-                        <p>Back COver</p>
-                    </div>
-                    {% break %}
-                    {% endif %}
-
-                    <div class="back">
-                        <img src="{{ pdfData.images[nextIndex].url }}" alt="Img {{ index }}">
-                        {% assign points = pdfData.images[nextIndex].points %}
-
-                        {% for point in points %}
-                        <div data-id="hotspot-{{nextIndex}}-{{forloop.index}}"
-                            class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage }}%] image-hotspots--pin z-20 absolute flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse ">
-
-                            <div className="image-hotspots--pin-button hotspot--pinned active">
-                                <svg data-name="Component 30 – 2" xmlns="http://www.w3.org/2000/svg" width="25"
-                                    height="25" viewBox="0 0 25 25">
-                                    <g id="Rectangle_1123" data-name="Rectangle 1123" fill="none" stroke="#F1EFED"
-                                        stroke-width="9" className="">
-                                        <rect width="25" height="25" rx="12.5" stroke="none"></rect>
-                                        <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none"></rect>
-                                    </g>
-                                </svg>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% assign index = nextIndex | plus:1 %}
-                {% endfor %}
+              {% endfor %}
             </div>
+          </div>
+
+          <!-- PAGE SPREADS 1 to N-1: Each spread = Front (even page) + Back (odd page) -->
+          {% assign index = 1 %}
+          {% assign total_spreads = array_length | divided_by: 2 | ceil %}
+          
+          {% for spread_idx in (1..total_spreads) %}
+            {% assign front_img_idx = index %}
+            {% assign back_img_idx = index | plus: 1 %}
+            
+            <div class="page">
+              <div class="front relative">
+                {% if front_img_idx < array_length %}
+                  <img src="{{ pdfData.images[front_img_idx].url }}" alt="Page {{ front_img_idx | plus: 1 }}">
+                  {% assign points = pdfData.images[front_img_idx].points %}
+                  {% for point in points %}
+                    <div data-id="hotspot-{{front_img_idx}}-{{forloop.index}}"
+                         class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse">
+                      <div class="image-hotspots--pin-button hotspot--pinned active">
+                        <svg width="25" height="25" viewBox="0 0 25 25" fill="none">
+                          <rect width="25" height="25" rx="12.5" stroke="#F1EFED" stroke-width="9"/>
+                          <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none" stroke="#F1EFED" stroke-width="9"/>
+                        </svg>
+                      </div>
+                    </div>
+                  {% endfor %}
+                {% else %}
+                  <div class="empty-page flex items-center justify-center bg-gray-100">
+                    <span class="text-gray-400">End of Catalog</span>
+                  </div>
+                {% endif %}
+              </div>
+
+              <div class="back">
+                {% if back_img_idx < array_length %}
+                  <img src="{{ pdfData.images[back_img_idx].url }}" alt="Page {{ back_img_idx | plus: 1 }}">
+                  {% assign points = pdfData.images[back_img_idx].points %}
+                  {% for point in points %}
+                    <div data-id="hotspot-{{back_img_idx}}-{{forloop.index}}"
+                         class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse">
+                      <div class="image-hotspots--pin-button hotspot--pinned active">
+                        <svg width="25" height="25" viewBox="0 0 25 25" fill="none">
+                          <rect width="25" height="25" rx="12.5" stroke="#F1EFED" stroke-width="9"/>
+                          <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none" stroke="#F1EFED" stroke-width="9"/>
+                        </svg>
+                      </div>
+                    </div>
+                  {% endfor %}
+                {% else %}
+                  <div class="back cover">
+                    <div class="cover-content text-center">
+                      <h2 class="text-3xl font-bold text-white">Thank You</h2>
+                      <p class="text-white/70 mt-2">Explore more products</p>
+                    </div>
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+            
+            {% assign index = back_img_idx | plus: 1 %}
+            {% if index >= array_length %}
+              {% break %}
+            {% endif %}
+          {% endfor %}
         </div>
+      </div>
+
+      <!-- Thumbnail Navigation -->
+      <div class="thumbnail-nav">
+        <div class="thumbnail-track">
+          <!-- Cover thumbnail -->
+          <div class="thumbnail-item" data-spread="0">
+            <div class="thumbnail-img-wrapper">
+              <div class="thumbnail-img cover-thumb">
+                <span>Cover</span>
+              </div>
+            </div>
+            <span class="thumbnail-label">Cover</span>
+          </div>
+          
+          <!-- Page thumbnails - each spread shows one representative image -->
+          {% assign thumb_spread = 1 %}
+          {% for image in images offset:1 %}
+            <div class="thumbnail-item" data-spread="{{ thumb_spread }}">
+              <div class="thumbnail-img-wrapper">
+                <img src="{{ image.url }}" alt="Page Spread {{ thumb_spread }}" class="thumbnail-img">
+              </div>
+              <span class="thumbnail-label">Page {{ forloop.index | times: 2 | minus: 1 }}-{{ forloop.index | times: 2 }}</span>
+            </div>
+            {% assign thumb_spread = thumb_spread | plus: 1 %}
+          {% endfor %}
+        </div>
+      </div>
     </div>
-    {% comment %} arrow buttons for book turn {% endcomment %}
-    <button class="book-prev-next prev border py-2 px-4 rounded-sm shadow-lg bg-white text-black">
-        <div class="flex items-center gap-1">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-                <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
-                <g id="SVGRepo_iconCarrier">
-                    <path fill-rule="evenodd" clip-rule="evenodd"
-                        d="M10.5303 5.46967C10.8232 5.76256 10.8232 6.23744 10.5303 6.53033L5.81066 11.25H20C20.4142 11.25 20.75 11.5858 20.75 12C20.75 12.4142 20.4142 12.75 20 12.75H5.81066L10.5303 17.4697C10.8232 17.7626 10.8232 18.2374 10.5303 18.5303C10.2374 18.8232 9.76256 18.8232 9.46967 18.5303L3.46967 12.5303C3.17678 12.2374 3.17678 11.7626 3.46967 11.4697L9.46967 5.46967C9.76256 5.17678 10.2374 5.17678 10.5303 5.46967Z"
-                        fill="#1C274C"></path>
-                </g>
-            </svg>
-            <span>prev</span>
-        </div>
-    </button>
-    <button class="book-prev-next next border py-2 px-4 rounded-sm shadow-lg bg-white text-black">
-        <div class="flex items-center gap-1">
-            <span>next</span>
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-                <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
-                <g id="SVGRepo_iconCarrier">
-                    <path d="M4 12H20M20 12L14 6M20 12L14 18" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"
-                        stroke-linejoin="round"></path>
-                </g>
-            </svg>
-        </div>
-    </button>
-</div>
+  </div>
 
+  <!-- Navigation Buttons -->
+  <button class="book-prev-next prev">
+    <div class="flex items-center gap-1 bg-white/90 backdrop-blur px-5 py-3 rounded-full shadow-xl">
+      <svg viewBox="0 0 24 24" fill="none" class="w-5 h-5">
+        <path d="M10.5303 5.46967C10.8232 5.76256 10.8232 6.23744 10.5303 6.53033L5.81066 11.25H20C20.4142 11.25 20.75 11.5858 20.75 12C20.75 12.4142 20.4142 12.75 20 12.75H5.81066L10.5303 17.4697C10.8232 17.7626 10.8232 18.2374 10.5303 18.5303C10.2374 18.8232 9.76256 18.8232 9.46967 18.5303L3.46967 12.5303C3.17678 12.2374 3.17678 11.7626 3.46967 11.4697L9.46967 5.46967C9.76256 5.17678 10.2374 5.17678 10.5303 5.46967Z" fill="#1C274C"/>
+      </svg>
+      <span class="font-medium">Prev</span>
+    </div>
+  </button>
+  <button class="book-prev-next next">
+    <div class="flex items-center gap-1 bg-white/90 backdrop-blur px-5 py-3 rounded-full shadow-xl">
+      <span class="font-medium">Next</span>
+      <svg viewBox="0 0 24 24" fill="none" class="w-5 h-5">
+        <path d="M4 12H20M20 12L14 6M20 12L14 18" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </button>
+</div>
 
 <script src="{{ 'main.js' | asset_url }}" defer="defer"></script>
 
 {% schema %}
 {
-"name": "PDF-CONVERTER",
-"class": "section",
-"target": "section",
-"settings": [
-{
-"type": "text",
-"id": "metafield_key",
-"label": "PDF KEY",
-"default": "PDF KEY"
-},
-{
-"type": "header",
-"content": "Section padding"
-},
-{
-"type": "range",
-"id": "padding_top",
-"min": 0,
-"max": 200,
-"step": 4,
-"unit": "px",
-"label": "padding top",
-"default": 36
-},
-{
-"type": "range",
-"id": "padding_bottom",
-"min": 0,
-"max": 100,
-"step": 4,
-"unit": "px",
-"label": "padding bottom",
-"default": 36
-}
-]
+  "name": "PDF-CONVERTER",
+  "class": "section",
+  "target": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "metafield_key",
+      "label": "PDF KEY",
+      "default": "PDF KEY"
+    },
+    {
+      "type": "header",
+      "content": "Section padding"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 200,
+      "step": 4,
+      "unit": "px",
+      "label": "padding top",
+      "default": 36
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "label": "padding bottom",
+      "default": 36
+    }
+  ]
 }
 {% endschema %}

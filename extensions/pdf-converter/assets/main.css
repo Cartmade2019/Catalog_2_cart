@@ -1,36 +1,81 @@
 * {
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
 }
 
-/* FlipBook */
-
+/* Flipbook Container - Realistic Book Background */
 .pdf-body-wrapper {
   margin: 0;
-  padding-top: 5rem;
-  padding-bottom: 5rem;
+  padding: 4rem 2rem;
   display: flex;
   flex-direction: column;
-  gap: 0;
-  justify-content: space-between;
-  min-height: 100dvh;
-  overflow: hidden;
-  border-radius: 8px;
-  background: #ebeced;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(145deg, #c9ccd1 0%, #b0b4ba 100%);
   align-items: center;
+  position: relative;
 }
 
-.pdf-body-wrapper .title-wrapper {
-  padding-left: 1rem;
-  padding-right: 1rem;
+/* Book shadow underneath */
+.book-container {
+  position: relative;
+  filter: drop-shadow(0 25px 20px rgba(0, 0, 0, 0.25));
+  background-color: #454545;
+  padding: 25px 14px;
+  padding-bottom: 0px;
 }
 
+/* Cover Page - Dark realistic cover */
+.cover {
+  background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 50%, #1a1a2e 100%);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.cover::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.03) 0px,
+    rgba(255, 255, 255, 0.03) 2px,
+    transparent 2px,
+    transparent 8px
+  );
+  pointer-events: none;
+}
+
+.cover-content h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.cover-content p {
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+/* Book Core Styles - Realistic with page curl effect */
 .pdf-main-container .book {
   position: relative;
   display: flex;
-  margin: auto;
-  width: 45%;
+  margin: 0 auto 3rem auto;
+  width: 50%;
+  max-width: 900px;
+  min-width: 340px;
   transform-style: preserve-3d;
-  transition: translate 1s;
+  transition: translate 0.8s cubic-bezier(0.23, 1, 0.32, 1);
   translate: calc(min(var(--c), 1) * 50%) 0%;
 }
 
@@ -39,276 +84,412 @@
   flex: none;
   display: flex;
   width: 100%;
-  font-size: 4px;
   pointer-events: all;
-  user-select: none;
   transform-style: preserve-3d;
   transform-origin: left center;
   transition:
-    transform 1s,
-    rotate 1s ease-in
-      calc((min(var(--i), var(--c)) - max(var(--i), var(--c))) * 50ms);
+    transform 0.8s ease,
+    rotate 0.6s ease-in;
   translate: calc(var(--i) * -100%) 0px 0px;
   transform: translateZ(
-    calc((var(--c) - var(--i) - 0.5) * calc(var(--thickness) * 0.23cqmin))
+    calc((var(--c) - var(--i) - 0.5) * calc(var(--thickness) * 0.2cqmin))
   );
   rotate: 0 1 0 calc(clamp(0, var(--c) - var(--i), 1) * -180deg);
 }
 
+/* Page styling - White with realistic edges */
 .pdf-main-container .front,
 .pdf-main-container .back {
   position: relative;
   flex: none;
   width: 100%;
   backface-visibility: hidden;
-  /* FIX: overflow must be visible so hotspot pins are not clipped */
   overflow: visible;
-  background-color: #fff;
-  translate: 0px;
-  font-size: 1.8rem;
+  background: #ffffff;
+  border-radius: 3px;
+  /* Subtle border for realism */
+  border: 1px solid #e0e0e0;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.8),
+    0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Page curl effect on edges */
+.pdf-main-container .front::before,
+.pdf-main-container .back::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 15px;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.pdf-main-container .front::before {
+  right: 0;
+  background: #cdcdcd;
+}
+
+.pdf-main-container .back::before {
+  left: 0;
+  background: #cdcdcd;
+
+  /* background: linear-gradient(to right, rgba(0, 0, 0, 0.08), transparent); */
+}
+
+.pdf-main-container .front {
+  border-radius: 4px 2px 2px 4px;
 }
 
 .pdf-main-container .back {
   translate: -100% 0;
   rotate: 0 1 0 180deg;
+  border-radius: 2px 4px 4px 2px;
 }
 
-/* FlipBook customization styles */
-
-.pdf-main-container .book {
-  counter-reset: page -1;
-  & a {
-    color: inherit;
-  }
+.pdf-main-container .front img,
+.pdf-main-container .back img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 2px;
 }
 
-.pdf-main-container .page {
-  box-shadow: 0 0 10px -12px #000000;
+.pdf-main-container .front:has(img),
+.pdf-main-container .back:has(img) {
+  padding: 0;
 }
 
-.pdf-main-container .front,
-.pdf-main-container .back {
+/* Empty page styling */
+.empty-page {
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+  background: linear-gradient(145deg, #f8f8f8, #efefef);
   display: flex;
-  flex-flow: column wrap;
-  justify-content: space-between;
-  padding: 2em;
-  border: 1px solid #0002;
-
-  &:has(img) {
-    padding: 0;
-  }
-
-  & img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  &::after {
-    position: absolute;
-    bottom: 1em;
-    counter-increment: page;
-    content: counter(page) ".";
-    font-size: 0.8em;
-  }
-}
-.cover {
-  &::after {
-    content: "";
-  }
-}
-.pdf-main-container .front {
-  &::after {
-    right: 1em;
-  }
-  border-radius: 0.1em 0.5em 0.5em 0.1em;
-}
-.back {
-  &::after {
-    left: 1em;
-  }
-  background-image: linear-gradient(to right, #f7f7f7 80%, #eee 100%);
-  border-radius: 0.5em 0.1em 0.1em 0.5em;
+  align-items: center;
+  justify-content: center;
 }
 
-.cover {
-  background:
-    radial-gradient(
-      circle farthest-corner at 80% 20%,
-      hsl(150 80% 20% / 0.3) 0%,
-      hsl(170 60% 10% / 0.1) 100%
-    ),
-    hsl(231, 32%, 29%) url("https://picsum.photos/id/984/800/900") 50% / cover;
-  color: hsl(200 30% 98%);
+/* Page numbers - subtle */
+.pdf-main-container .front::after,
+.pdf-main-container .back::after {
+  position: absolute;
+  bottom: 12px;
+  font-size: 11px;
+  color: #999;
+  font-weight: 400;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-family: "Georgia", serif;
+  z-index: 3;
 }
 
-.book-prev-next svg {
-  width: 24px;
-  height: 24px;
+.pdf-main-container .front::after {
+  right: 15px;
+  content: attr(data-page);
 }
 
+.pdf-main-container .back::after {
+  left: 15px;
+  content: attr(data-page);
+}
+
+/* Cover pages don't show numbers */
+.cover::after,
+.cover::before {
+  display: none !important;
+}
+
+/* Navigation Buttons */
 .book-prev-next {
   position: absolute;
-  top: 50%;
+  top: 45%;
   transform: translateY(-50%);
   background: transparent;
-  box-shadow: none;
-  border: 0;
+  border: none;
+  cursor: pointer;
+  z-index: 100;
+  transition: all 0.2s ease;
 }
 
 .book-prev-next.prev {
-  left: 0;
+  left: 2%;
 }
-
 .book-prev-next.next {
-  right: 0;
+  right: 2%;
 }
 
-/* ─── Hotspot pins ─── */
+.book-prev-next div {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(8px);
+}
+
+.book-prev-next div:hover {
+  transform: scale(1.05);
+  box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.3);
+}
+
+/* Thumbnail Navigation */
+.thumbnail-nav {
+  margin-top: 3rem;
+  padding: 1.25rem 1rem;
+  background: rgba(255, 255, 255, 0.4);
+  width: 80%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.thumbnail-track {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: nowrap;
+  min-width: min-content;
+  padding: 0.5rem;
+}
+
+.thumbnail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.thumbnail-item:hover {
+  transform: translateY(-4px);
+}
+
+.thumbnail-item.active .thumbnail-img-wrapper {
+  border: 3px solid #3b82f6;
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+}
+
+.thumbnail-img-wrapper {
+  width: 195px;
+  height: 253px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid #333;
+  background: #fff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s;
+}
+
+.thumbnail-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover-thumb {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.thumbnail-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #333;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-family: monospace;
+}
+
+/* Hotspot Pins */
 .image-hotspots--pin {
-  display: block;
   transform: translate(-50%, -50%) !important;
+  transition: transform 0.2s ease;
+}
+
+.image-hotspots--pin:hover {
+  transform: translate(-50%, -50%) scale(1.15) !important;
 }
 
 .image-hotspots--pin-button.hotspot--pinned {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   background: transparent;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 0 6px #00000014;
 }
+
 .image-hotspots--pin-button.hotspot--pinned svg {
-  display: block !important;
-  transform-origin: center !important;
-  border: 2px #fff solid !important;
-  border-radius: 50% !important;
-  padding: 1px !important;
-  outline: 1px #fff solid !important;
-  outline-offset: 1px !important;
-  transition: all 0.25s cubic-bezier(0.104, 0.204, 0.492, 1);
+  display: block;
+  transform-origin: center;
+  border: 2px solid white;
+  border-radius: 50%;
+  padding: 2px;
+  outline: 1px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+  transition: all 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1);
 }
+
 .image-hotspots--pin-button.hotspot--pinned:after {
   content: "";
   display: block;
-  width: 36px;
-  height: 36px;
-  background: #f5f5f5;
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.25);
   border-radius: 50%;
-  opacity: 0.4;
   animation: hotspot-wave 2s ease infinite alternate;
   position: absolute;
-  top: 0;
-  left: 0;
+  top: -3px;
+  left: -3px;
   z-index: -1;
 }
 
 @keyframes hotspot-wave {
-  0%   { transform: scale(1); }
-  100% { transform: scale(1.45); }
+  0% {
+    transform: scale(1);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
 }
 
-/* ─── Tooltip popover ───
-   KEY FIX: position:fixed (not absolute) so it escapes the book/page
-   stacking context and always renders centred in the viewport.
-   The reference confirmed this is the correct approach.
-─── */
+/* Popover Modal */
 .custom-popover {
   position: fixed;
   z-index: 9999;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: min(90vw, 550px);
+  width: min(90vw, 520px);
   background: #ffffff;
-  color: #000000;
-  border-radius: 10px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
-  border: 1px solid #e8e8e8;
+  border-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   pointer-events: auto;
+  animation: modalFadeIn 0.2s ease;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
 }
 
 .modal-content-wrapper {
   display: flex;
-  gap: 1rem;
+  gap: 1.25rem;
   flex-wrap: wrap;
-  align-items: flex-start;
-  padding: 1.25rem;
+  padding: 1.5rem;
+}
+
+.modal-content-item:first-child {
+  flex: 1.2;
+}
+.modal-content-item:last-child {
+  flex: 2;
 }
 
 .modal-content-item img {
-  border-radius: 6px;
+  border-radius: 16px;
   width: 100%;
   height: auto;
-  object-fit: contain;
-}
-
-@media (min-width: 480px) {
-  .modal-content-wrapper .modal-content-item:first-child {
-    width: calc(38% - 0.5rem);
-  }
-  .modal-content-wrapper .modal-content-item:last-child {
-    width: calc(62% - 0.5rem);
-  }
+  object-fit: cover;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .custom-popover .cross-btn {
   position: absolute;
-  top: 0.6rem;
-  right: 0.6rem;
-  background: #f0f0f0;
+  top: 12px;
+  right: 12px;
+  background: #f1f5f9;
   border-radius: 50%;
-  padding: 0.3rem;
+  width: 32px;
+  height: 32px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
-  transition: background 0.15s;
+  transition: all 0.15s;
 }
+
 .custom-popover .cross-btn:hover {
-  background: #e0e0e0;
-}
-.custom-popover .cross-btn svg {
-  width: 1.1rem;
-  height: 1.1rem;
+  background: #e2e8f0;
+  transform: scale(1.05);
 }
 
 .custom-popover select {
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg width='14' height='8' viewBox='0 0 14 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 7.99994C6.8684 8.0007 6.73793 7.97548 6.6161 7.92571C6.49426 7.87595 6.38344 7.80262 6.29 7.70994L0.290002 1.70994C0.101699 1.52164 -0.00408936 1.26624 -0.00408936 0.999941C-0.00408936 0.73364 0.101699 0.478245 0.290002 0.289941C0.478306 0.101638 0.733701 -0.00415039 1 -0.00415039C1.2663 -0.00415039 1.5217 0.101638 1.71 0.289941L7 5.58994L12.29 0.299942C12.4813 0.136115 12.7274 0.0505086 12.9791 0.0602298C13.2307 0.0699509 13.4695 0.174284 13.6476 0.352378C13.8257 0.530473 13.93 0.769212 13.9397 1.02089C13.9494 1.27256 13.8638 1.51864 13.7 1.70994L7.7 7.70994C7.51374 7.89469 7.26234 7.99884 7 7.99994Z' fill='%23303030'/%3E%3C/svg%3E%0A");
-  background-repeat: no-repeat;
-  background-position: calc(100% - 1rem);
-  background-size: 12px;
-  margin: 0;
-}
-.custom-popover select:focus-visible {
-  box-shadow: none;
-  outline: 0;
-}
-
-/* ─── Responsive ─── */
-@media (max-width: 1024px) {
-  .pdf-body-wrapper {
-    padding: 3rem;
-    min-height: 100%;
-  }
-  .pdf-main-container .book {
-    width: 52%;
-    margin: 0 auto;
-  }
-}
-
-/* ─── Button settings ─── */
-.button-settings-item {
   width: 100%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 0.9rem;
+  margin: 8px 0;
 }
-@media (min-width: 640px) {
-  .button-settings-item {
-    width: calc(50% - 16px / 2);
-    height: 100%;
+
+.add-to-cart-btn {
+  width: 100%;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 40px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-to-cart-btn:hover {
+  background: #2563eb;
+  transform: scale(0.98);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .pdf-main-container .book {
+    width: 70%;
+  }
+  .pdf-body-wrapper {
+    padding: 3rem 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .pdf-main-container .book {
+    width: 85%;
+  }
+  .book-prev-next.prev {
+    left: 0;
+  }
+  .book-prev-next.next {
+    right: 0;
+  }
+  .modal-content-wrapper {
+    flex-direction: column;
+  }
+  .thumbnail-img-wrapper {
+    width: 55px;
+    height: 55px;
   }
 }
