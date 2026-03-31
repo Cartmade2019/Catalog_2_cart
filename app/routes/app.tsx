@@ -28,6 +28,7 @@ export default function App() {
           </Link>
           <Link to="/app/pdf-convert">Catalog listing</Link>
           <Link to="/app/global-settings">Global settings</Link>
+          <Link to="/app/installation">Installation</Link>
           <Link to="/app/subscription">Plans</Link>
         </NavMenu>
         <Outlet />
