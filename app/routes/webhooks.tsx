@@ -64,6 +64,6 @@ export const action: ActionFunction = async ({ request }) => {
       );
 
     default:
-      throw new Response("Unhandled webhook topic", { status: 404 });
+      return new Response("Unhandled webhook topic", { status: 404 });
   }
 };
