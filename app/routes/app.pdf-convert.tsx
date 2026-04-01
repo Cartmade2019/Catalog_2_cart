@@ -279,11 +279,9 @@ function UploadModal({
             )}
             <span style={{ fontSize: 15, fontWeight: 600, color: "#0F172A" }}>{title}</span>
           </div>
-          {phase !== "progress" && (
-            <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, background: "#F1F5F9", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </button>
-          )}
+          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, background: "#F1F5F9", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+   <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+ </button>
         </div>
 
         {/* Step indicator */}
@@ -763,7 +761,7 @@ const PdfConvert = () => {
 
               {/* Processing placeholder */}
               {isProcessing && (
-                <div style={{ display: "grid", gridTemplateColumns: "28px 50px 1fr 90px 58px 60px 130px 90px 116px", alignItems: "center", padding: "12px 16px", gap: 10, background: "#FFFEF5", borderBottom: "1px solid #FDE68A" }}>
+                <div onClick={() => setShowUploadModal(true)} style={{ display: "grid", gridTemplateColumns: "28px 50px 1fr 90px 58px 60px 130px 90px 116px", alignItems: "center", padding: "12px 16px", gap: 10, background: "#FFFEF5", borderBottom: "1px solid #FDE68A", cursor: "pointer" }}>
                   <div /><div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 18, height: 18, border: "2px solid #1A73E8", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /></div>
                   <div><p style={{ fontSize: 13, fontWeight: 500, color: "#0F172A", margin: "0 0 2px" }}>{convertedFileName || "New catalog"}</p><p style={{ fontSize: 11, color: "#F59E0B", margin: 0 }}>{UPLOAD_STEPS[convertStep] || "Processing…"}</p></div>
                   <span style={{ fontSize: 12, color: "#94A3B8" }}>—</span><div style={{ textAlign: "center" }}><span style={{ fontSize: 12, color: "#94A3B8" }}>—</span></div><div style={{ textAlign: "center" }}><span style={{ fontSize: 12, color: "#94A3B8" }}>—</span></div><span /><span /><span />

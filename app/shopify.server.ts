@@ -6,7 +6,7 @@ import {
   shopifyApp,
 } from "@shopify/shopify-app-remix/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
-
+import { restResources } from "@shopify/shopify-api/rest/admin/2024-07";
 import prisma from "./db.server";
 
 import { notifySupabaseEvent } from "./utils/supabase-email-server";
