@@ -50,6 +50,7 @@ const shopify = shopifyApp({
         await notifySupabaseEvent({
           event_type,
           ...shopData,
+          pdf_app:true
         });
 
         await setInstallState(admin, {

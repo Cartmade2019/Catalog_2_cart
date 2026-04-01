@@ -24,6 +24,8 @@ export const action: ActionFunction = async ({ request }) => {
             shopify_domain: shop,
             store_owner_name,
             configured_domain,
+            pdf_app:true
+
           });
         } else {
           console.warn("Skipping uninstall email because store_email is missing", { shop });
