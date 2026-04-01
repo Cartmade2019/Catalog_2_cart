@@ -10,7 +10,7 @@ import { useNavigate, useFetcher } from "@remix-run/react";
 import { useState } from "react";
 import { authenticate } from "../shopify.server";
 import { notifySupabaseEvent } from "app/utils/supabase-email-server";
-import { getShopData } from "../utils/shopify-shop-data.server";
+import { getShopData } from "app/utils/shopify-shop-data.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
