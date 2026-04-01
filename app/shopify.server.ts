@@ -9,6 +9,10 @@ import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prism
 import { restResources } from "@shopify/shopify-api/rest/admin/2024-07";
 import prisma from "./db.server";
 
+import { notifySupabaseEvent } from "./utils/supabase-email-server";
+import { getShopData } from "./utils/shopify-shop-data.server";
+import { getInstallState, setInstallState } from "./utils/install-state-metafield.server";
+
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
@@ -26,8 +30,37 @@ const shopify = shopifyApp({
     },
   },
   hooks: {
-    afterAuth: async ({ session }) => {
-      shopify.registerWebhooks({ session });
+    afterAuth: async ({ session, admin }) => {
+      await shopify.registerWebhooks({ session });
+
+      try {
+        const shopData = await getShopData(admin, session.shop);
+        const installState = await getInstallState(admin);
+
+        const event_type =
+          installState?.installed_once === true ? "reinstall" : "install";
+
+        if (!shopData.store_email) {
+          console.warn("Skipping install/reinstall email because store email is missing", {
+            shop: session.shop,
+          });
+          return;
+        }
+
+        await notifySupabaseEvent({
+          event_type,
+          ...shopData,
+        });
+
+        await setInstallState(admin, {
+          installed_once: true,
+          last_event: event_type,
+          last_installed_at: new Date().toISOString(),
+          ...shopData,
+        });
+      } catch (error) {
+        console.error("Failed post-auth install/reinstall flow:", error);
+      }
     },
   },
   future: {

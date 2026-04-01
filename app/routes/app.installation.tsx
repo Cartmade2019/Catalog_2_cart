@@ -3,9 +3,63 @@
 // Palette: #1A73E8 blue · #0F172A dark · #22C55E green · #F8FAFC bg
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useNavigate } from "@remix-run/react";
-import { useState } from "react";
 
+
+import { json, type ActionFunctionArgs } from "@remix-run/node";
+import { useNavigate, useFetcher } from "@remix-run/react";
+import { useState } from "react";
+import { authenticate } from "../shopify.server";
+import { notifySupabaseEvent } from "app/utils/supabase-email-server";
+import { getShopData } from "../utils/shopify-shop-data.server";
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { admin, session } = await authenticate.admin(request);
+
+  try {
+  
+    const formData = await request.formData();
+
+    const subject = String(formData.get("subject") || "").trim();
+    const priority = String(formData.get("priority") || "normal").trim();
+    const attachment = String(formData.get("attachment_url") || "").trim();
+    const message = String(formData.get("message") || "").trim();
+
+    if (!subject) {
+      return json({ success: false, error: "Subject is required" }, { status: 400 });
+    }
+
+    const shopData = await getShopData(admin, session.shop);
+
+    if (!shopData.store_email || !shopData.store_name || !shopData.shopify_domain) {
+      return json(
+        { success: false, error: "Missing required shop data" },
+        { status: 400 }
+      );
+    }
+
+    await notifySupabaseEvent({
+      event_type: "support",
+      ...shopData,
+      subject,
+      message,
+      priority,
+      attachment_url: attachment ? [attachment] : [],
+      pdf_app: true,
+    });
+
+    return json({ success: true, message: "Support request sent successfully" });
+  } catch (error: any) {
+    console.error("Failed to submit support request:", error);
+
+    return json(
+      {
+        success: false,
+        error: error?.message || "Failed to submit support request",
+      },
+      { status: 500 }
+    );
+  }
+};
 // ─── Icons ───────────────────────────────────────────────────────────────────
 const CheckIcon = ({ color = "#22C55E", size = 16 }: { color?: string; size?: number }) => (
   <svg width={size} height={size} fill="none" viewBox="0 0 24 24">
@@ -265,10 +319,34 @@ const Installation = () => {
   const navigate = useNavigate();
   const [openStep, setOpenStep] = useState<number | null>(2);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [showSupportForm, setShowSupportForm] = useState(false);
+  const [supportSubject, setSupportSubject] = useState("");
+  const [supportPriority, setSupportPriority] = useState("normal");
+  const [supportAttachment, setSupportAttachment] = useState("");
+
+  const supportFetcher = useFetcher< {success: boolean;error?:string}>();
+const [supportMessage, setSupportMessage] = useState("");
+const isSubmitting = supportFetcher.state === "submitting";
+const submitResult = supportFetcher.data; 
+
+const handleSupportSubmit = () => {
+  if (!supportSubject.trim()) return;
+
+   const formData = new FormData();
+
+    formData.append("subject", supportSubject);
+    formData.append("message", supportMessage);
+    formData.append("priority", supportPriority);
+    formData.append("attachment_url", supportAttachment);
+
+
+    supportFetcher.submit(formData, { method: "post" });
+};
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#F8FAFC", fontFamily: "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
       <style>{`
+       @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes slideDown {
           from { opacity: 0; transform: translateY(-6px); }
           to   { opacity: 1; transform: translateY(0); }
@@ -394,19 +472,150 @@ const Installation = () => {
         <div style={{ height: 1, background: "#E8EDF2", margin: "40px 0" }} />
 
         {/* ── SUPPORT STRIP ── */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, flexWrap: "wrap", background: "#fff", border: "1px solid #E8EDF2", borderRadius: 12, padding: "22px 28px" }}>
-          <div>
-            <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 600, color: "#0F172A" }}>Need a hand?</p>
-            <p style={{ margin: 0, fontSize: 14, color: "#64748B" }}>Check the FAQ below, or reach out — we typically respond within a few hours.</p>
+        <div style={{ background: "#fff", border: "1px solid #E8EDF2", borderRadius: 12, padding: "22px 28px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
+            <div>
+              <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 600, color: "#0F172A" }}>Need a hand?</p>
+              <p style={{ margin: 0, fontSize: 14, color: "#64748B" }}>Check the FAQ below, or reach out — we typically respond within a few hours.</p>
+            </div>
+            <button
+              className="ghostBtn"
+              onClick={() => setShowSupportForm(!showSupportForm)}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#fff", color: "#374151", border: "1px solid #D1D5DB", borderRadius: 9, padding: "10px 18px", fontSize: 14, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap", transition: "border-color 0.15s, color 0.15s" }}
+            >
+              <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M22 6l-10 7L2 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+              Contact support
+            </button>
           </div>
-          <a
-            href="mailto:support@example.com"
-            className="ghostBtn"
-            style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#fff", color: "#374151", border: "1px solid #D1D5DB", borderRadius: 9, padding: "10px 18px", fontSize: 14, fontWeight: 500, textDecoration: "none", whiteSpace: "nowrap", transition: "border-color 0.15s, color 0.15s" }}
-          >
-            <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M22 6l-10 7L2 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-            Contact support
-          </a>
+
+          {showSupportForm && (
+            <div style={{ marginTop: 22, paddingTop: 22, borderTop: "1px solid #E8EDF2", display: "flex", flexDirection: "column", gap: 16, animation: "slideDown 0.18s ease both" }}>
+              {/* Subject */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
+                  Subject <span style={{ color: "#EF4444" }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Hotspot pins not saving"
+                  value={supportSubject}
+                  onChange={(e) => setSupportSubject(e.target.value)}
+                  style={{ fontSize: 14, color: "#0F172A", background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, padding: "10px 14px", outline: "none", transition: "border-color 0.15s" }}
+                  onFocus={(e) => (e.target.style.borderColor = "#1A73E8")}
+                  onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
+                />
+              </div>
+<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+  <label style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
+    Message <span style={{ color: "#EF4444" }}>*</span>
+  </label>
+  <textarea
+    placeholder="Describe the issue you're facing..."
+    value={supportMessage}
+    onChange={(e) => setSupportMessage(e.target.value)}
+    rows={5}
+    style={{
+      fontSize: 14,
+      color: "#0F172A",
+      background: "#F8FAFC",
+      border: "1px solid #E2E8F0",
+      borderRadius: 8,
+      padding: "10px 14px",
+      outline: "none",
+      resize: "vertical",
+      transition: "border-color 0.15s",
+    }}
+    onFocus={(e) => (e.target.style.borderColor = "#1A73E8")}
+    onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
+  />
+</div>
+              {/* Priority */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Priority</label>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {(["low", "normal", "high", "urgent"] as const).map((level) => {
+                    const colors: Record<string, { active: string; border: string; text: string }> = {
+                      low:    { active: "#F0FDF4", border: "#22C55E", text: "#16A34A" },
+                      normal: { active: "#EFF6FF", border: "#1A73E8", text: "#1A73E8" },
+                      high:   { active: "#FFFBEB", border: "#F59E0B", text: "#92400E" },
+                      urgent: { active: "#FEF2F2", border: "#EF4444", text: "#B91C1C" },
+                    };
+                    const c = colors[level];
+                    const selected = supportPriority === level;
+                    return (
+                      <button
+                        key={level}
+                        onClick={() => setSupportPriority(level)}
+                        style={{
+                          fontSize: 13, fontWeight: 500, textTransform: "capitalize",
+                          padding: "7px 14px", borderRadius: 7, cursor: "pointer",
+                          border: `1px solid ${selected ? c.border : "#E2E8F0"}`,
+                          background: selected ? c.active : "#fff",
+                          color: selected ? c.text : "#64748B",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        {level}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Attachment URL */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
+                  Attachment URL <span style={{ fontSize: 12, fontWeight: 400, color: "#94A3B8" }}>(optional)</span>
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  value={supportAttachment}
+                  onChange={(e) => setSupportAttachment(e.target.value)}
+                  style={{ fontSize: 14, color: "#0F172A", background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, padding: "10px 14px", outline: "none", transition: "border-color 0.15s" }}
+                  onFocus={(e) => (e.target.style.borderColor = "#1A73E8")}
+                  onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
+                />
+              </div>
+{/* Feedback banner */}
+{submitResult && (
+  <div style={{
+    display: "flex", alignItems: "center", gap: 10,
+    padding: "11px 14px", borderRadius: 8,
+    background: submitResult.success ? "#F0FDF4" : "#FEF2F2",
+    border: `1px solid ${submitResult.success ? "#BBF7D0" : "#FECACA"}`,
+    animation: "slideDown 0.18s ease both",
+  }}>
+    {submitResult.success
+      ? <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7" stroke="#16A34A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      : <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M12 8v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#DC2626" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
+    }
+    <span style={{ fontSize: 13, color: submitResult.success ? "#166534" : "#B91C1C" }}>
+      {submitResult.success ? "Support ticket submitted! We'll be in touch shortly." : (submitResult.error ?? "Something went wrong. Please try again.")}
+    </span>
+  </div>
+)}
+              {/* Actions */}
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
+                <button
+                  className="ghostBtn"
+                  onClick={() => setShowSupportForm(false)}
+                  style={{ fontSize: 14, fontWeight: 500, color: "#64748B", background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, padding: "9px 18px", cursor: "pointer", transition: "border-color 0.15s" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="ctaBtn"
+                  onClick={handleSupportSubmit}
+                style={{ fontSize: 14, fontWeight: 500, color: "#fff", background: isSubmitting ? "#6BA8F0" : "#1A73E8", border: "none", borderRadius: 8, padding: "9px 18px", cursor: isSubmitting ? "not-allowed" : "pointer", boxShadow: "0 2px 8px rgba(26,115,232,0.28)", transition: "background 0.15s", display: "inline-flex", alignItems: "center", gap: 7 }}
+ >{isSubmitting && (
+     <div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.4)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+   )}
+  {isSubmitting ? "Sending…" : "Submit ticket"}
+ </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── FAQ ── */}

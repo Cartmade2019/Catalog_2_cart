@@ -513,6 +513,7 @@ const PdfConvert = () => {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [uploadModalFile, setUploadModalFile] = useState<File | null>(null);
   const [uploadModalPhase, setUploadModalPhase] = useState<"preview" | "progress" | "done">("preview");
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -549,6 +550,7 @@ const PdfConvert = () => {
       setPdfList(fetcher.data.pdfData);
       setPageInfo(fetcher.data.pageInfo);
       setQuery(fetcher.data.query ?? query);
+      setIsDeleting(false);
     }
   }, [fetcher.data]);
 
@@ -634,6 +636,7 @@ const PdfConvert = () => {
     fetcher.submit(fd, { method: "delete" });
     setSelectedIds(new Set());
     setDeleteTarget(null);
+    setIsDeleting(true);
   };
 
   const handlePaginate = (dir: "next" | "prev") => {
@@ -831,6 +834,21 @@ const PdfConvert = () => {
       </div>
 
       {/* ── OVERLAYS ── */}
+      {/* ── DELETE LOADING OVERLAY ── */}
+      {isDeleting && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(6px)" }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: "32px 40px", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, boxShadow: "0 24px 64px rgba(15,23,42,0.18)", minWidth: 220 }}>
+            <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#FEF2F2", border: "1px solid #FECACA", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: 22, height: 22, border: "2.5px solid #EF4444", borderTop: "2.5px solid transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: "#0F172A", margin: "0 0 4px" }}>Deleting…</p>
+              <p style={{ fontSize: 12, color: "#94A3B8", margin: 0 }}>Removing catalog{deleteTarget === "bulk" && selectedIds.size > 1 ? "s" : ""} from your store</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showUploadModal && uploadModalFile && (
         <UploadModal
           file={uploadModalFile}
