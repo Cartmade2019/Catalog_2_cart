@@ -51,7 +51,7 @@
 
 <!-- Main Flipbook Section -->
 <div class="relative">
-  <div class="pdf-main-container section-{{ block.id }}-padding relative">
+  <div class="pdf-main-container section-{{ block.id }}-padding relative" style="display:flex; justify-content:center;">
     <div class="pdf-body-wrapper">
   
       <!-- Book Container -->
@@ -98,13 +98,39 @@
           -->
           <div class="page">
             <div class="front cover">
-              <div class="cover-title-wrap">
-                <span class="cover-title">{{ pdfData.pdfName }}</span>
-              </div>
+              {% if pdfData.coverImage %}
+                <img src="{{ pdfData.coverImage }}" alt="{{ pdfData.pdfName }}">
+              {% else %}
+                <div class="cover-title-wrap">
+                  <span class="cover-title">{{ pdfData.pdfName }}</span>
+                </div>
+              {% endif %}
             </div>
             {% if isWideFormat %}
               <!-- Back of cover = LEFT half of image[0], so image[0] fills the spread when cover is flipped -->
-              <div class="back wide-back" style="background-image: url('{{ pdfData.images[0].url }}');"></div>
+              <div class="back wide-back relative" style="background-image: url('{{ pdfData.images[0].url }}');">
+                {% assign cover_points = pdfData.images[0].points %}
+                {% for point in cover_points %}
+                  {% comment %}
+                    Same wide-back mirror formula as inner spreads:
+                    Only left-half points (xPercentage < 50).
+                    panel_x = xPercentage * 2  →  css_left = 100 - panel_x
+                  {% endcomment %}
+                  {% if point.xPercentage < 50 %}
+                    {% assign panel_x = point.xPercentage | times: 2 %}
+                    {% assign css_left = 100 | minus: panel_x %}
+                    <div data-id="hotspot-0-{{forloop.index}}"
+                         class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{css_left}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse">
+                      <div class="image-hotspots--pin-button hotspot--pinned active">
+                        <svg width="25" height="25" viewBox="0 0 25 25" fill="none">
+                          <rect width="25" height="25" rx="12.5" stroke="#F1EFED" stroke-width="9"/>
+                          <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none" stroke="#F1EFED" stroke-width="9"/>
+                        </svg>
+                      </div>
+                    </div>
+                  {% endif %}
+                {% endfor %}
+              </div>
             {% else %}
               <div class="back">
                 {% if pdfData.images[0] %}
@@ -132,13 +158,66 @@
               <div class="page">
                 <!-- front = RIGHT half of image[front_img_idx] (completes the spread started by previous back) -->
                 {% if front_img_idx < array_length %}
-                  <div class="front wide-front" style="background-image: url('{{ pdfData.images[front_img_idx].url }}');"></div>
+                  <div class="front wide-front relative" style="background-image: url('{{ pdfData.images[front_img_idx].url }}');">
+                    {% assign points = pdfData.images[front_img_idx].points %}
+                    {% for point in points %}
+                      {% comment %}
+                        wide-front shows the RIGHT half of the image via background-size:200% / background-position:right.
+                        The editor stores xPercentage as a percentage of the FULL image width (0–100%).
+                        wide-front displays x=50–100% of the image, scaled to fill the panel (0–100% panel space).
+                        Only render hotspots whose image-x is in the right half (>= 50%).
+                        Convert to panel space: panel_x = (xPercentage - 50) * 2
+                      {% endcomment %}
+                      {% if point.xPercentage >= 50 %}
+                        {% assign panel_x = point.xPercentage | minus: 50 | times: 2 %}
+                        <div data-id="hotspot-{{front_img_idx}}-{{forloop.index}}"
+                             class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{panel_x}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse">
+                          <div class="image-hotspots--pin-button hotspot--pinned active">
+                            <svg width="25" height="25" viewBox="0 0 25 25" fill="none">
+                              <rect width="25" height="25" rx="12.5" stroke="#F1EFED" stroke-width="9"/>
+                              <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none" stroke="#F1EFED" stroke-width="9"/>
+                            </svg>
+                          </div>
+                        </div>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
                 {% else %}
                   <div class="front wide-front"></div>
                 {% endif %}
                 <!-- back = LEFT half of image[back_img_idx] (starts the next spread) -->
                 {% if back_img_idx < array_length %}
-                  <div class="back wide-back" style="background-image: url('{{ pdfData.images[back_img_idx].url }}');"></div>
+                  <div class="back wide-back relative" style="background-image: url('{{ pdfData.images[back_img_idx].url }}');">
+                    {% assign points = pdfData.images[back_img_idx].points %}
+                    {% for point in points %}
+                      {% comment %}
+                        wide-back shows the LEFT half of the image via background-size:200% / background-position:left.
+                        The editor stores xPercentage as a percentage of the FULL image width (0–100%).
+                        wide-back displays x=0–50% of the image, scaled to fill the panel (0–100% panel space).
+                        Only render hotspots whose image-x is in the left half (< 50%).
+
+                        .back has CSS rotate:0 1 0 180deg which MIRRORS the local X axis.
+                        So `left: N%` in CSS appears at visual position (100 - N)% from the left.
+                        To appear at desired visual panel_x%, we must set: css_left = 100 - panel_x
+
+                        Convert: panel_x = xPercentage * 2   (maps 0–50 → 0–100)
+                                 css_left = 100 - panel_x
+                      {% endcomment %}
+                      {% if point.xPercentage < 50 %}
+                        {% assign panel_x = point.xPercentage | times: 2 %}
+                        {% assign css_left = 100 | minus: panel_x %}
+                        <div data-id="hotspot-{{back_img_idx}}-{{forloop.index}}"
+                             class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{css_left}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse">
+                          <div class="image-hotspots--pin-button hotspot--pinned active">
+                            <svg width="25" height="25" viewBox="0 0 25 25" fill="none">
+                              <rect width="25" height="25" rx="12.5" stroke="#F1EFED" stroke-width="9"/>
+                              <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none" stroke="#F1EFED" stroke-width="9"/>
+                            </svg>
+                          </div>
+                        </div>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
                 {% else %}
                   <div class="back wide-back"></div>
                 {% endif %}
@@ -229,10 +308,14 @@
       <div class="thumbnail-nav">
         <div class="thumbnail-track">
 
-          <!-- Cover thumbnail — pdfName text, no image -->
+          <!-- Cover thumbnail -->
           <div class="thumbnail-item" data-spread="0">
-            <div class="thumbnail-img-wrapper cover-thumb">
-              <span>{{ pdfData.pdfName | truncate: 10, '' }}</span>
+            <div class="thumbnail-img-wrapper {% unless pdfData.coverImage %}cover-thumb{% endunless %}">
+              {% if pdfData.coverImage %}
+                <img src="{{ pdfData.coverImage }}" alt="{{ pdfData.pdfName }}" class="thumbnail-img">
+              {% else %}
+                <span>{{ pdfData.pdfName | truncate: 10, '' }}</span>
+              {% endif %}
             </div>
             <span class="thumbnail-label">Cover</span>
           </div>

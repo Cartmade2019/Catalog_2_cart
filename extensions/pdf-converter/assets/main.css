@@ -6,23 +6,26 @@
 
 /* Flipbook Container - Realistic Book Background */
 .pdf-body-wrapper {
-  margin: 0;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
+  max-width: 1100px;
   position: relative;
   overflow-x: hidden;
   padding-bottom: 1.5rem;
 }
 
-/* Book shadow underneath */
+/* Book shadow underneath — constrained to viewport so thumbnails always show */
 .book-container {
   position: relative;
   filter: drop-shadow(0 25px 20px rgba(0, 0, 0, 0.25));
   background-color: #454545;
   padding: 20px 14px 2px;
   width: 100%;
+
+  overflow: hidden;
 }
 
 /* Cover Page - pdfName title display */
@@ -547,12 +550,10 @@
   overflow: hidden;
   background-repeat: no-repeat;
   background-size: 200% 100%;
-  /* Must have explicit height — no <img> child to provide intrinsic size.
-     aspect-ratio gives a natural page height relative to the panel width.
-     1 / 1.414 = A4 portrait proportion, works well for A3/A2/A1 too. */
   aspect-ratio: 1 / 1.414;
   width: 100%;
   display: block;
+  position: relative; /* needed for absolute-positioned hotspot pins */
 }
 
 .pdf-main-container .wide-front {
