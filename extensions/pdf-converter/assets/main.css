@@ -7,15 +7,13 @@
 /* Flipbook Container - Realistic Book Background */
 .pdf-body-wrapper {
   margin: 0;
-
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  height: 104vh;
-  width: 100%;
   align-items: center;
+  width: 100%;
   position: relative;
   overflow-x: hidden;
+  padding-bottom: 1.5rem;
 }
 
 /* Book shadow underneath */
@@ -23,10 +21,8 @@
   position: relative;
   filter: drop-shadow(0 25px 20px rgba(0, 0, 0, 0.25));
   background-color: #454545;
-  padding: 20px 14px;
-  height: 100%;
+  padding: 20px 14px 2px;
   width: 100%;
-  padding-bottom: 2px;
 }
 
 /* Cover Page - pdfName title display */
@@ -66,9 +62,8 @@
 .pdf-main-container .book {
   position: relative;
   display: flex;
-  margin: 0 auto 3rem auto;
+  margin: 0 auto;
   width: 50%;
-height: 100%;
   transform-style: preserve-3d;
   transition: translate 0.8s cubic-bezier(0.23, 1, 0.32, 1);
   translate: calc(min(var(--c), 1) * 50%) 0%;
@@ -98,6 +93,7 @@ height: 100%;
   position: relative;
   flex: none;
   width: 100%;
+  aspect-ratio: 1 / 1.414; /* A4 portrait — gives the book its intrinsic height */
   backface-visibility: hidden;
   overflow: visible;
   background: #ffffff;
@@ -230,13 +226,14 @@ height: 100%;
 
 /* Thumbnail Navigation */
 .thumbnail-nav {
-  margin-top: 1.5rem;
+  margin-top: 1.25rem;
   padding: 0.75rem 1rem;
   background: rgba(255, 255, 255, 0.3);
   width: 80%;
   overflow-x: auto;
   scrollbar-width: thin;
   border-radius: 12px;
+  flex-shrink: 0;
 }
 
 .thumbnail-track {
@@ -585,21 +582,13 @@ height: 100%;
 /* Responsive */
 @media (max-width: 1024px) {
   .pdf-main-container .book {
-    width: 78%;
-  }
-  .pdf-body-wrapper {
-    padding: 4rem 2rem;
-    min-height: 110vh;
+    width: 70%;
   }
 }
 
 @media (max-width: 768px) {
   .pdf-main-container .book {
-    width: 90%;
-  }
-  .pdf-body-wrapper {
-    padding: 3rem 1rem;
-    min-height: 100vh;
+    width: 88%;
   }
   .book-prev-next.prev {
     left: 0;

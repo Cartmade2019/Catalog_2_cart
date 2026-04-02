@@ -58,7 +58,44 @@
       <div class="book-container">
         <div class="book{% if isWideFormat %} wide-format{% endif %}" data-wide-format="{{ isWideFormat }}" data-pdf-format="{{ pageFormat }}">
 
-          <!-- PAGE SPREAD 0: COVER — front=pdfName, back=LEFT half of image[0] (wide) or pdfName (A4) -->
+          <!--
+            PAGE SPREAD 0: COVER
+            - front  = pdfName title (always, for all formats)
+            - back   = wide format: wide-front of image[0] (RIGHT half, so image[0] fills full spread when open)
+                       A4 format:   blank/empty (book closed look)
+
+            Wide format open-book layout:
+              LEFT  side = .back  of spread N   (wide-back,  background-position: left center  → left  half of image)
+              RIGHT side = .front of spread N+1 (wide-front, background-position: right center → right half of image)
+
+            For image[0] to fill the first open spread:
+              Spread 0 back  → wide-front of image[0]  (becomes LEFT  side, but we want RIGHT half... )
+
+            Wait — .back has rotate: 0 1 0 180deg so local X is mirrored.
+            wide-back  uses background-position: left center  → after mirror = visual LEFT  half ✓
+            wide-front uses background-position: right center → after mirror on .back = visual RIGHT half ✗
+
+            Correct mapping:
+              LEFT  side = .back  of spread N  → class wide-back  (background-position: left center)
+              RIGHT side = .front of spread N  → class wide-front (background-position: right center)
+
+            So for image[i] to span a full open spread:
+              Spread N back  = wide-back  with image[i]   → shows LEFT  half visually
+              Spread N+1 front = wide-front with image[i] → shows RIGHT half visually
+
+            Cover spread (spread 0):
+              front = cover title
+              back  = wide-back with image[0]  → LEFT half of image[0] shown on left page
+
+            Spread 1:
+              front = wide-front with image[0] → RIGHT half of image[0] shown on right page
+              back  = wide-back  with image[1] → LEFT  half of image[1]
+
+            Spread 2:
+              front = wide-front with image[1]
+              back  = wide-back  with image[2]
+            ...
+          -->
           <div class="page">
             <div class="front cover">
               <div class="cover-title-wrap">
@@ -66,49 +103,42 @@
               </div>
             </div>
             {% if isWideFormat %}
+              <!-- Back of cover = LEFT half of image[0], so image[0] fills the spread when cover is flipped -->
               <div class="back wide-back" style="background-image: url('{{ pdfData.images[0].url }}');"></div>
             {% else %}
-              <div class="back cover">
-                <div class="cover-title-wrap">
-                  <span class="cover-title">{{ pdfData.pdfName }}</span>
-                </div>
+              <div class="back">
+                {% if pdfData.images[0] %}
+                  <img src="{{ pdfData.images[0].url }}" alt="Page 1">
+                {% else %}
+                  <div class="empty-page"></div>
+                {% endif %}
               </div>
             {% endif %}
           </div>
 
           {% if isWideFormat %}
             <!--
-              WIDE FORMAT layout when open:
-              LEFT side  = .back  of page N   → wide-back  (right half in local coords = left half visually after Y-flip)
-              RIGHT side = .front of page N+1 → wide-front (left half = right half of same image visually)
-
-              So each image[i] needs:
-                .back  of spread i   → shows image[i] left-half  (already done for i=0 in cover above)
-                .front of spread i+1 → shows image[i] right-half
-
-              Spread structure:
-                Spread 0 back  = image[0] left-half   ← done above in cover
-                Spread 1 front = image[0] right-half
-                Spread 1 back  = image[1] left-half
-                Spread 2 front = image[1] right-half
-                Spread 2 back  = image[2] left-half
+              WIDE FORMAT inner spreads:
+                Spread 1 front = wide-front image[0] (RIGHT half) + back = wide-back image[1] (LEFT half)
+                Spread 2 front = wide-front image[1]              + back = wide-back image[2]
                 ...
-              Total inner spreads needed = array_length
+                Spread N front = wide-front image[N-1]            + back = wide-back image[N] (or empty)
+              Total inner spreads = array_length (covers image[0] right-half through image[N-1] right-half)
             -->
             {% assign total_spreads = array_length %}
             {% for spread_idx in (1..total_spreads) %}
-              {% assign img_idx = spread_idx | minus: 1 %}
-              {% assign next_img_idx = spread_idx %}
+              {% assign front_img_idx = spread_idx | minus: 1 %}
+              {% assign back_img_idx  = spread_idx %}
               <div class="page">
-                <!-- front = right half of image[img_idx] -->
-                {% if img_idx < array_length %}
-                  <div class="front wide-front" style="background-image: url('{{ pdfData.images[img_idx].url }}');"></div>
+                <!-- front = RIGHT half of image[front_img_idx] (completes the spread started by previous back) -->
+                {% if front_img_idx < array_length %}
+                  <div class="front wide-front" style="background-image: url('{{ pdfData.images[front_img_idx].url }}');"></div>
                 {% else %}
                   <div class="front wide-front"></div>
                 {% endif %}
-                <!-- back = left half of image[next_img_idx] -->
-                {% if next_img_idx < array_length %}
-                  <div class="back wide-back" style="background-image: url('{{ pdfData.images[next_img_idx].url }}');"></div>
+                <!-- back = LEFT half of image[back_img_idx] (starts the next spread) -->
+                {% if back_img_idx < array_length %}
+                  <div class="back wide-back" style="background-image: url('{{ pdfData.images[back_img_idx].url }}');"></div>
                 {% else %}
                   <div class="back wide-back"></div>
                 {% endif %}
@@ -116,9 +146,15 @@
             {% endfor %}
 
           {% else %}
-            <!-- A4 FORMAT: spread 1 = image[0] left + image[1] right, spread 2 = image[2]+image[3], etc. -->
-            {% assign index = 0 %}
-            {% assign total_spreads = array_length | divided_by: 2 | ceil %}
+            <!--
+              A4 FORMAT:
+              Cover back already shows image[0], so inner spreads start at image[1].
+              Spread 1: front=image[1], back=image[2]
+              Spread 2: front=image[3], back=image[4], etc.
+            -->
+            {% assign index = 1 %}
+            {% assign remaining = array_length | minus: 1 %}
+            {% assign total_spreads = remaining | divided_by: 2 | ceil %}
 
             {% for spread_idx in (1..total_spreads) %}
               {% assign front_img_idx = index %}
@@ -216,10 +252,11 @@
             {% endfor %}
 
           {% else %}
-            <!-- A4 FORMAT thumbnails: 2 images per spread, starting image[0]+image[1] -->
+            <!-- A4 FORMAT thumbnails: cover back=image[0], so spreads start at image[1] -->
             {% assign thumb_spread = 1 %}
-            {% assign thumb_img_idx = 0 %}
-            {% assign thumb_total = array_length | divided_by: 2 | ceil %}
+            {% assign thumb_img_idx = 1 %}
+            {% assign remaining = array_length | minus: 1 %}
+            {% assign thumb_total = remaining | divided_by: 2 | ceil %}
             {% for s in (1..thumb_total) %}
               {% assign front_num = thumb_img_idx %}
               {% assign back_num = thumb_img_idx | plus: 1 %}
