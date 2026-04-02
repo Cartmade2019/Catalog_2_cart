@@ -50,6 +50,7 @@
     "react-draggable": "^4.4.6",
     "react-pageflip": "^2.0.3",
     "react-redux": "^9.1.2",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.14",
     "vite-tsconfig-paths": "^5.0.1",
     "wiggle": "^0.0.17"

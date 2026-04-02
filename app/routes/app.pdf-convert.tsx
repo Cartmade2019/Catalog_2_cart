@@ -80,6 +80,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const targetPageLabel = (formData.get("targetPageLabel") as string) || "";
 
     const pdfPath = path.join(uploadDir, savedFilename);
+
     const pdfSizeInKB = (fs.statSync(pdfPath).size / 1024).toFixed(2);
 
     const jobId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -90,6 +91,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         processingStatus[jobId] = 1;
         const imageUrls = await extractImagesFromPDF(pdfPath);
         const readedUrls = imageUrls.map((url: string) => fs.readFileSync(path.join(process.cwd(), "public", url)));
+const sharp = (await import("sharp")).default;
+const firstImageMeta = await sharp(readedUrls[0]).metadata();
+const imgWidth = firstImageMeta.width ?? 0;
+const imgHeight = firstImageMeta.height ?? 0;
+
+console.log(imgWidth, imgHeight);
+
+const longerSide = Math.max(imgWidth, imgHeight);
+const pageFormat = longerSide > 1800 ? "A3" : "A4";
+console.log(pageFormat);
 
         processingStatus[jobId] = 2;
         const uploadedImages = [];
@@ -106,10 +117,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           value: JSON.stringify({
             pdfName, pdfSizeInKB,
             date: new Date().toLocaleDateString(),
+  
             // ── store the target page so details page can build the deep-link
             targetPage,
             targetPageHandle,
             targetPageLabel,
+            pageFormat,
             images: previewUrls.map((d: any, i: number) => ({ id: i + 1, url: d.preview.image.url, points: [] })),
           }),
           type: "json", owner_resource: "shop",

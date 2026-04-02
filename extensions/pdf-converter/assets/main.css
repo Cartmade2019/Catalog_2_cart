@@ -7,14 +7,15 @@
 /* Flipbook Container - Realistic Book Background */
 .pdf-body-wrapper {
   margin: 0;
-  padding: 4rem 2rem;
+
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: 100vh;
-
+  height: 104vh;
+  width: 100%;
   align-items: center;
   position: relative;
+  overflow-x: hidden;
 }
 
 /* Book shadow underneath */
@@ -22,17 +23,43 @@
   position: relative;
   filter: drop-shadow(0 25px 20px rgba(0, 0, 0, 0.25));
   background-color: #454545;
-  padding: 25px 14px;
-  padding-bottom: 0px;
+  padding: 20px 14px;
+  height: 100%;
+  width: 100%;
+  padding-bottom: 2px;
 }
 
-/* Cover Page - shows first PDF page image */
+/* Cover Page - pdfName title display */
 .cover {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   overflow: hidden;
   padding: 0 !important;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  aspect-ratio: 1 / 1.414;
+  width: 100%;
+}
+
+.cover-title-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 2rem;
+  text-align: center;
+}
+
+.cover-title {
+  color: #ffffff;
+  font-size: clamp(1rem, 3cqw, 2rem);
+  font-weight: 700;
+  font-family: Georgia, serif;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  word-break: break-word;
 }
 
 /* Book Core Styles - Realistic with page curl effect */
@@ -41,8 +68,7 @@
   display: flex;
   margin: 0 auto 3rem auto;
   width: 50%;
-  max-width: 960px;
-  min-width: 340px;
+height: 100%;
   transform-style: preserve-3d;
   transition: translate 0.8s cubic-bezier(0.23, 1, 0.32, 1);
   translate: calc(min(var(--c), 1) * 50%) 0%;
@@ -183,10 +209,10 @@
 }
 
 .book-prev-next.prev {
-  left: -6%;
+  left: 2%;
 }
 .book-prev-next.next {
-  right: -6%;
+  right: 2%;
 }
 
 .book-prev-next div {
@@ -246,7 +272,7 @@
   height: 68px;
   border-radius: 5px;
   overflow: hidden;
-  border: 1.5px solid rgba(0, 0, 0, 0.15);
+  border: 1.5px solid rgba(0,0,0,0.15);
   background: #fff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
   transition: all 0.2s;
@@ -376,30 +402,29 @@
 
 /* Left: fixed-size image panel */
 .modal-content-item:first-child {
-  width: 100%;
+  flex: 0 0 150px;
+  width: 150px;
+  background: #f4f5f7;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 1rem;
+  border-right: 1px solid rgba(0,0,0,0.06);
 }
 
 /* Image always fills its container consistently */
 .modal-content-item:first-child img {
   width: 100%;
-  height: 250px;
+  height: 150px;
   object-fit: contain;
   border-radius: 10px;
   display: block;
-  margin: 15px;
-  box-shadow: 0px 0px 9px 1px #e9e9e9;
 }
-.tooltip-title {
-  font-size: 18px !important;
-  font-weight: 600 !important;
-}
+
 /* Right: content panel */
 .modal-content-item:last-child {
   flex: 1;
-  padding: 0.25rem 1rem 1.25rem 1.6rem;
+  padding: 1.25rem 1rem 1.25rem 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -408,6 +433,8 @@
 
 /* Product title */
 .modal-content-item:last-child h3 {
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
   line-height: 1.3;
   margin: 0 0 4px 0;
   padding-right: 28px; /* space for close btn */
@@ -423,8 +450,8 @@
 
 /* Price */
 .modal-content-item:last-child p.font-bold {
-  font-size: 16px !important;
-  font-weight: normal !important;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
   margin: 0 0 10px 0;
 }
 
@@ -443,7 +470,14 @@
 }
 
 .add-to-cart-btn {
+  width: 100%;
+  background: #111;
+  color: #fff;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 8px;
   font-weight: 600;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: opacity 0.15s ease;
   letter-spacing: 0.01em;
@@ -459,9 +493,13 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
+  margin-top: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
   border: 1.5px solid currentColor;
   font-size: 0.8rem;
   font-weight: 600;
+  color: inherit;
   text-decoration: none;
   opacity: 0.7;
   transition: opacity 0.15s ease;
@@ -495,19 +533,73 @@
   background: #e2e8f0;
 }
 
+
+/* =============================================
+   WIDE FORMAT MODE (non-A4: A3, A2, A1, etc.)
+   One full image per spread, split 50/50 via background-image.
+   .wide-front = left half,  .wide-back = right half.
+   The .back panel has rotate: 0 1 0 180deg in the flipbook CSS,
+   so its local coordinate space is mirrored on the X axis.
+   background-position: right center on .wide-back renders the
+   correct right half of the image after that flip.
+   background-image is set as an inline style from Liquid.
+   ============================================= */
+
+.pdf-main-container .wide-front,
+.pdf-main-container .wide-back {
+  overflow: hidden;
+  background-repeat: no-repeat;
+  background-size: 200% 100%;
+  /* Must have explicit height — no <img> child to provide intrinsic size.
+     aspect-ratio gives a natural page height relative to the panel width.
+     1 / 1.414 = A4 portrait proportion, works well for A3/A2/A1 too. */
+  aspect-ratio: 1 / 1.414;
+  width: 100%;
+  display: block;
+}
+
+.pdf-main-container .wide-front {
+  /* Shows RIGHT half of the image — unflipped, right side of open book */
+  background-position: right center;
+}
+
+.pdf-main-container .wide-back {
+  /* Shows LEFT half of the image — this element has rotate: 0 1 0 180deg so
+     local coords are mirrored. background-position: left center in local space
+     maps to the visual LEFT half after the flip. */
+  background-position: left center;
+}
+
+/* Remove spine shadow line — image bridges the seam */
+.pdf-main-container .wide-front::before,
+.pdf-main-container .wide-back::before {
+  display: none;
+}
+
+/* Hide page numbers for wide-format pages */
+.pdf-main-container .wide-front::after,
+.pdf-main-container .wide-back::after {
+  display: none;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .pdf-main-container .book {
-    width: 70%;
+    width: 78%;
   }
   .pdf-body-wrapper {
-    padding: 3rem 1rem;
+    padding: 4rem 2rem;
+    min-height: 110vh;
   }
 }
 
 @media (max-width: 768px) {
   .pdf-main-container .book {
-    width: 85%;
+    width: 90%;
+  }
+  .pdf-body-wrapper {
+    padding: 3rem 1rem;
+    min-height: 100vh;
   }
   .book-prev-next.prev {
     left: 0;
