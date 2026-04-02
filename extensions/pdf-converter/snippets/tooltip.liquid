@@ -1,17 +1,20 @@
 {% assign product = all_products[handle] %}
 
 <div data-hotspot-id="hotspot-{{data_page_index}}-{{data_hotspot_index}}"
-    class="custom-popover hidden">
-  <div class="relative rounded-[20px] overflow-hidden" style="background: {{tooltipData.backgroundColor}}; color: {{tooltipData.fontColor}};">
+  class="custom-popover hidden fixed items-center justify-center max-w-[300px] min-h-[377px">
+  <div class="relative w-full max-w-[720px] rounded-[20px] overflow-hidden shadow-2xl"
+    style="background: {{tooltipData.backgroundColor}}; color: {{tooltipData.fontColor}};">
 
-    <button type="button" class="cross-btn" aria-label="Close">
+    <button type="button"
+      class="cross-btn absolute right-4 top-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-black shadow-md transition hover:bg-white"
+      aria-label="Close">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
         <path d="M19 5L5 19M5 5L19 19" stroke="#555" stroke-width="2.5"
           stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </button>
 
-    <div class="modal-content-wrapper">
+    <div class="modal-content-wrapper flex flex-col">
 
       <!-- Left: fixed image panel -->
       <div class="modal-content-item">
@@ -25,12 +28,24 @@
       <!-- Right: content panel -->
       <div class="modal-content-item">
         {% if product %}
-          <h3 style="color: {{tooltipData.fontColor}};">{{ product.title }}</h3>
-          <p class="desc">{{ product.description | strip_html | truncatewords: 10 }}</p>
-          <p class="font-bold" style="color: {{tooltipData.priceColor}};">{{ product.price | money }}</p>
+          <h3 class="tooltip-title" style="color: {{tooltipData.fontColor}};">
+            {{ product.title }}
+          </h3>
+
+          {% if product.description %}
+          <p class="desc mt-2 text-sm leading-6 opacity-80">
+            {{ product.description | strip_html | truncatewords: 10 }}
+          </p>
+
+          {% endif %}
+          <p class="mt-3 text-lg font-bold" style="color: {{tooltipData.priceColor}};">
+            {{ product.price | money }}
+          </p>
 
           {% if product.variants.size > 1 %}
-            <select name="id" class="pointer-events-auto cursor-pointer">
+            <select
+              name="id"
+              class="pointer-events-auto cursor-pointer mt-4 w-full rounded-xl border border-black/10 bg-white/80 px-4 py-3 text-sm outline-none ring-0 focus:border-black/20 focus:bg-white">
               {% for variant in product.variants %}
                 <option value="{{ variant.id }}">{{ variant.title }}</option>
               {% endfor %}
@@ -39,18 +54,53 @@
             <input type="hidden" name="id" value="{{ product.variants.first.id }}">
           {% endif %}
 
-          <button type="button"
-            style="box-shadow: 2px 2px {{buttonData.shadow}}px {{buttonData.shadowColor}}; border: {{buttonData.borderWidth}}px solid {{buttonData.borderColor}}; background-color: {{buttonData.backgroundColor}}; color: {{buttonData.textColor}}; padding: {{buttonData.paddingY}}px {{buttonData.paddingX}}px; border-radius: {{buttonData.borderRadius}}; font-size: {{buttonData.fontSize}}px;"
-            class="add-to-cart-btn pointer-events-auto cursor-pointer w-full transition">
-            {{ buttonData.buttonText }}
+          <!-- Loading UI -->
+          <div class="tooltip-loading hidden mt-4">
+            <div class="mb-2 flex items-center gap-2">
+              <span class="loading-spinner inline-flex h-4 w-4">
+                <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.2" stroke-width="3"></circle>
+                  <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path>
+                </svg>
+              </span>
+          
+              <span class="loading-success hidden  h-4 w-4">
+                <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4">
+                  <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+              </span>
+          
+              <span class="loading-text text-[11px] font-semibold uppercase tracking-[0.18em] opacity-70">
+                Adding to cart
+              </span>
+          
+              <span class="loading-percent ml-auto text-[11px] font-semibold opacity-70">0%</span>
+            </div>
+          
+            <div class="h-2 w-full overflow-hidden rounded-full bg-black/10">
+              <div class="loading-bar h-full w-0 rounded-full bg-black/80 transition-all duration-300 ease-out"></div>
+            </div>
+          </div>
+<div class="flex items-center justify-between gap-4">
+  {% comment %} box-shadow: 2px 2px {{buttonData.shadow}}px {{buttonData.shadowColor}}; border: {{buttonData.borderWidth}}px solid {{buttonData.borderColor}};  {% endcomment %}
+          <button
+            type="button"
+            style="background-color: {{buttonData.backgroundColor}}; color: {{buttonData.textColor}}; padding: {{buttonData.paddingY}}px {{buttonData.paddingX}}px; border-radius: {{buttonData.borderRadius}}px; font-size: {{buttonData.fontSize}}px;"
+            class="add-to-cart-btn pointer-events-auto cursor-pointer w-1/2 transition inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
+            <span class="btn-text">{{ buttonData.buttonText }}</span>
+           
           </button>
 
-          <a href="/products/{{product.handle}}" target="_blank" class="view-product-btn">
+          <a
+            style="background-color: #606060; color: #ffffff; padding: {{buttonData.paddingY}}px {{buttonData.paddingX}}px; border-radius: {{buttonData.borderRadius}}px; font-size: {{buttonData.fontSize}}px;"
+            href="/products/{{product.handle}}" target="_blank"
+            class="view-product-btn  inline-flex items-center gap-2 text-sm font-medium opacity-80 transition hover:opacity-100 w-1/2" >
             View product
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M7 17L17 7M17 7H7M17 7V17"/>
             </svg>
           </a>
+        </div>
 
         {% else %}
           <p style="font-size:0.85rem; opacity:0.5;">Product not found.</p>

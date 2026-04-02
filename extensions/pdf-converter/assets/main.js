@@ -5,82 +5,161 @@
   let currentPageCallback = null;
   let totalSpreads = 0;
 
-  // Close all popovers
+  function lockPageScroll() {
+    document.documentElement.classList.add("overflow-hidden");
+    document.body.classList.add("overflow-hidden");
+  }
+
+  function unlockPageScroll() {
+    const hasOpenPopover = document.querySelector(
+      ".custom-popover:not(.hidden)",
+    );
+    if (!hasOpenPopover) {
+      document.documentElement.classList.remove("overflow-hidden");
+      document.body.classList.remove("overflow-hidden");
+    }
+  }
+
   function closeAllPopovers() {
     document
       .querySelectorAll(".custom-popover:not(.hidden)")
       .forEach(function (el) {
         el.classList.add("hidden");
       });
-  }
 
-  // Bind add-to-cart events
+    unlockPageScroll();
+  }
   function bindPopoverEvents(popover) {
     const submitBtn = popover.querySelector(".add-to-cart-btn");
     const variantSelect = popover.querySelector('select[name="id"]');
     const hiddenInput = popover.querySelector('input[name="id"]');
+    const loadingWrap = popover.querySelector(".tooltip-loading");
+    const loadingBar = popover.querySelector(".loading-bar");
+    const loadingPercent = popover.querySelector(".loading-percent");
+    const loadingText = popover.querySelector(".loading-text");
+    const loadingSpinner = popover.querySelector(".loading-spinner");
+    const loadingSuccess = popover.querySelector(".loading-success");
 
     if (!submitBtn) return;
 
     const freshBtn = submitBtn.cloneNode(true);
     submitBtn.replaceWith(freshBtn);
 
+    const freshBtnText = freshBtn.querySelector(".btn-text");
+    const freshBtnSpinner = freshBtn.querySelector(".btn-spinner");
+
     freshBtn.addEventListener("click", function (e) {
       e.preventDefault();
+
       const variantId = variantSelect
         ? variantSelect.value
         : hiddenInput
           ? hiddenInput.value
           : null;
+
       if (!variantId) {
         console.error("No variant ID found");
         return;
       }
 
+      const originalText = freshBtnText
+        ? freshBtnText.textContent
+        : "Add to cart";
+
+      let progress = 0;
+      let progressTimer = null;
+
+      function startLoading() {
+        freshBtn.disabled = true;
+
+        if (freshBtnText) freshBtnText.textContent = "Adding...";
+        if (freshBtnSpinner) freshBtnSpinner.classList.remove("hidden");
+
+        if (loadingWrap) loadingWrap.classList.remove("hidden");
+        if (loadingText) loadingText.textContent = "Adding to cart";
+        if (loadingSpinner) loadingSpinner.classList.remove("hidden");
+        if (loadingSuccess) loadingSuccess.classList.add("hidden");
+
+        progress = 12;
+        if (loadingBar) loadingBar.style.width = progress + "%";
+        if (loadingPercent) loadingPercent.textContent = progress + "%";
+
+        progressTimer = setInterval(function () {
+          if (progress < 90) {
+            progress += Math.floor(Math.random() * 10) + 5;
+            if (progress > 90) progress = 90;
+
+            if (loadingBar) loadingBar.style.width = progress + "%";
+            if (loadingPercent) loadingPercent.textContent = progress + "%";
+          }
+        }, 180);
+      }
+
+      function showSuccessState() {
+        clearInterval(progressTimer);
+
+        if (loadingBar) loadingBar.style.width = "100%";
+        if (loadingPercent) loadingPercent.textContent = "100%";
+
+        if (loadingText) loadingText.textContent = "Product added to cart";
+        if (loadingSpinner) loadingSpinner.classList.add("hidden");
+        if (loadingSuccess) loadingSuccess.classList.remove("hidden");
+
+        if (freshBtnText) freshBtnText.textContent = "Added";
+        if (freshBtnSpinner) freshBtnSpinner.classList.add("hidden");
+      }
+
+      function resetLoading() {
+        clearInterval(progressTimer);
+        freshBtn.disabled = false;
+
+        if (freshBtnText) freshBtnText.textContent = originalText;
+        if (freshBtnSpinner) freshBtnSpinner.classList.add("hidden");
+
+        if (loadingText) loadingText.textContent = "Adding to cart";
+        if (loadingSpinner) loadingSpinner.classList.remove("hidden");
+        if (loadingSuccess) loadingSuccess.classList.add("hidden");
+
+        if (loadingWrap) loadingWrap.classList.add("hidden");
+        if (loadingBar) loadingBar.style.width = "0%";
+        if (loadingPercent) loadingPercent.textContent = "0%";
+      }
+
+      startLoading();
+
       const formData = new FormData();
       formData.append("id", variantId);
 
-      fetch("/cart/add.js", { method: "POST", body: formData })
+      fetch("/cart/add.js", {
+        method: "POST",
+        body: formData,
+      })
         .then(function (res) {
+          if (!res.ok) {
+            throw new Error("Failed to add to cart");
+          }
           return res.json();
         })
         .then(function () {
-          popover.classList.add("hidden");
-          showCartPopup();
+          showSuccessState();
+
+          setTimeout(function () {
+            resetLoading();
+            popover.classList.add("hidden");
+            unlockPageScroll();
+          }, 1300);
         })
         .catch(function (err) {
           console.error("Error adding to cart:", err);
+          resetLoading();
           alert("Error adding product. Please try again.");
         });
     });
   }
 
-  // Show cart success modal
-  function showCartPopup() {
-    const cartPopup = document.getElementById("cart-popup");
-    if (!cartPopup) return;
-    cartPopup.classList.remove("hidden");
-    cartPopup.classList.add("flex");
-
-    document
-      .getElementById("close-popup")
-      ?.addEventListener("click", hideCartPopup, { once: true });
-    document
-      .getElementById("continue-shopping")
-      ?.addEventListener("click", hideCartPopup, { once: true });
-  }
-
-  function hideCartPopup() {
-    const cartPopup = document.getElementById("cart-popup");
-    if (!cartPopup) return;
-    cartPopup.classList.add("hidden");
-    cartPopup.classList.remove("flex");
-  }
-
-  // Update active thumbnail highlight
   function updateActiveThumbnail(currentSpread) {
     const thumbnails = document.querySelectorAll(".thumbnail-item");
-    thumbnails.forEach(function (thumb, idx) {
+    thumbnails.forEach(function (thumb) {
       const targetSpread = parseInt(thumb.dataset.spread, 10);
       if (targetSpread === currentSpread) {
         thumb.classList.add("active");
@@ -90,7 +169,6 @@
     });
   }
 
-  // Flipbook Logic - FIXED to navigate through ALL pages
   function initFlipbook(bookElement) {
     let currentSpread = 0;
     const spreads = bookElement.querySelectorAll(".page");
@@ -98,13 +176,11 @@
 
     currentBookElement = bookElement;
 
-    // Set page numbers for display (each spread has front + back = 2 pages)
     spreads.forEach(function (spread, idx) {
       spread.style.setProperty("--i", idx);
       const frontDiv = spread.querySelector(".front");
       const backDiv = spread.querySelector(".back");
 
-      // Calculate actual page numbers
       const frontPageNum = idx * 2;
       const backPageNum = idx * 2 + 1;
 
@@ -117,7 +193,6 @@
     });
 
     function updateSpread(newSpread) {
-      // Allow navigation through ALL spreads (0 to totalSpreads-1)
       currentSpread = Math.max(0, Math.min(newSpread, totalSpreads - 1));
       bookElement.style.setProperty("--c", currentSpread);
       closeAllPopovers();
@@ -127,7 +202,6 @@
     const prevBtn = document.querySelector(".book-prev-next.prev");
     const nextBtn = document.querySelector(".book-prev-next.next");
 
-    // Remove old listeners and add fresh ones
     const newPrevBtn = prevBtn?.cloneNode(true);
     const newNextBtn = nextBtn?.cloneNode(true);
 
@@ -144,6 +218,7 @@
         updateSpread(currentSpread - 1);
       });
     }
+
     if (newNextBtn) {
       newNextBtn.addEventListener("click", function (e) {
         e.preventDefault();
@@ -155,12 +230,10 @@
     updateSpread(0);
   }
 
-  // Thumbnail click navigation - jumps to specific spread
   function initThumbnailNavigation() {
     const thumbnails = document.querySelectorAll(".thumbnail-item");
 
     thumbnails.forEach(function (thumb) {
-      // Remove any existing listeners to avoid duplicates
       const newThumb = thumb.cloneNode(true);
       thumb.parentNode.replaceChild(newThumb, thumb);
 
@@ -180,7 +253,6 @@
     });
   }
 
-  // Hotspot click delegation
   document.addEventListener("click", function (e) {
     const hotspot = e.target.closest(".points");
     if (hotspot) {
@@ -191,6 +263,7 @@
       const popover = document.querySelector(
         '[data-hotspot-id="' + hotspotId + '"]',
       );
+
       if (!popover) {
         console.warn("No popover for hotspot:", hotspotId);
         return;
@@ -201,6 +274,7 @@
 
       if (!isOpen) {
         popover.classList.remove("hidden");
+        lockPageScroll();
         bindPopoverEvents(popover);
       }
       return;
@@ -210,7 +284,10 @@
     if (crossBtn) {
       e.stopPropagation();
       const popover = crossBtn.closest(".custom-popover");
-      if (popover) popover.classList.add("hidden");
+      if (popover) {
+        popover.classList.add("hidden");
+        unlockPageScroll();
+      }
       return;
     }
 
@@ -219,7 +296,6 @@
     }
   });
 
-  // Initialize everything when DOM is ready
   document.addEventListener("DOMContentLoaded", function () {
     const book = document.querySelector(".book");
     if (book) {

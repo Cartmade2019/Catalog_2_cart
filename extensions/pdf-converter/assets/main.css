@@ -246,7 +246,7 @@
   height: 68px;
   border-radius: 5px;
   overflow: hidden;
-  border: 1.5px solid rgba(0,0,0,0.15);
+  border: 1.5px solid rgba(0, 0, 0, 0.15);
   background: #fff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
   transition: all 0.2s;
@@ -376,29 +376,30 @@
 
 /* Left: fixed-size image panel */
 .modal-content-item:first-child {
-  flex: 0 0 150px;
-  width: 150px;
-  background: #f4f5f7;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
-  border-right: 1px solid rgba(0,0,0,0.06);
 }
 
 /* Image always fills its container consistently */
 .modal-content-item:first-child img {
   width: 100%;
-  height: 150px;
+  height: 250px;
   object-fit: contain;
   border-radius: 10px;
   display: block;
+  margin: 15px;
+  box-shadow: 0px 0px 9px 1px #e9e9e9;
 }
-
+.tooltip-title {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+}
 /* Right: content panel */
 .modal-content-item:last-child {
   flex: 1;
-  padding: 1.25rem 1rem 1.25rem 1.25rem;
+  padding: 0.25rem 1rem 1.25rem 1.6rem;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -407,8 +408,6 @@
 
 /* Product title */
 .modal-content-item:last-child h3 {
-  font-size: 0.95rem !important;
-  font-weight: 700 !important;
   line-height: 1.3;
   margin: 0 0 4px 0;
   padding-right: 28px; /* space for close btn */
@@ -424,8 +423,8 @@
 
 /* Price */
 .modal-content-item:last-child p.font-bold {
-  font-size: 1rem !important;
-  font-weight: 700 !important;
+  font-size: 16px !important;
+  font-weight: normal !important;
   margin: 0 0 10px 0;
 }
 
@@ -444,14 +443,7 @@
 }
 
 .add-to-cart-btn {
-  width: 100%;
-  background: #111;
-  color: #fff;
-  border: none;
-  padding: 10px 14px;
-  border-radius: 8px;
   font-weight: 600;
-  font-size: 0.85rem;
   cursor: pointer;
   transition: opacity 0.15s ease;
   letter-spacing: 0.01em;
@@ -467,13 +459,9 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  margin-top: 8px;
-  padding: 8px 14px;
-  border-radius: 8px;
   border: 1.5px solid currentColor;
   font-size: 0.8rem;
   font-weight: 600;
-  color: inherit;
   text-decoration: none;
   opacity: 0.7;
   transition: opacity 0.15s ease;
@@ -506,8 +494,6 @@
 .custom-popover .cross-btn:hover {
   background: #e2e8f0;
 }
-
-
 
 /* Responsive */
 @media (max-width: 1024px) {
