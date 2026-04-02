@@ -66,13 +66,10 @@
       <!-- Book Container -->
       <div class="book-container">
         <div class="book">
-          <!-- PAGE SPREAD 0: COVER (Front Cover + First Page Back) -->
+          <!-- PAGE SPREAD 0: COVER front=image[0], back=image[0] so page 1 is seen on first turn -->
           <div class="page">
             <div class="front cover">
-              <div class="cover-content">
-                <h1 class="text-4xl font-bold text-white">{{ pdfData.pdfName }}</h1>
-                <p class="text-white/80 mt-4">Interactive Flipbook</p>
-              </div>
+              <img src="{{ pdfData.images[0].url }}" alt="Cover">
             </div>
             <div class="back">
               <img src="{{ pdfData.images[0].url }}" alt="Page 1">
@@ -91,7 +88,7 @@
             </div>
           </div>
 
-          <!-- PAGE SPREADS 1 to N-1: Each spread = Front (even page) + Back (odd page) -->
+          <!-- PAGE SPREADS 1..N: front=image[1,3,5..], back=image[2,4,6..], blank if overflow -->
           {% assign index = 1 %}
           {% assign total_spreads = array_length | divided_by: 2 | ceil %}
           
@@ -116,9 +113,7 @@
                     </div>
                   {% endfor %}
                 {% else %}
-                  <div class="empty-page flex items-center justify-center bg-gray-100">
-                    <span class="text-gray-400">End of Catalog</span>
-                  </div>
+                  <div class="empty-page"></div>
                 {% endif %}
               </div>
 
@@ -138,54 +133,15 @@
                     </div>
                   {% endfor %}
                 {% else %}
-                  <div class="back cover">
-                    <div class="cover-content text-center">
-                      <h2 class="text-3xl font-bold text-white">Thank You</h2>
-                      <p class="text-white/70 mt-2">Explore more products</p>
-                    </div>
-                  </div>
+                  <div class="empty-page"></div>
                 {% endif %}
               </div>
             </div>
             
             {% assign index = back_img_idx | plus: 1 %}
-            {% if index >= array_length %}
-              {% break %}
-            {% endif %}
           {% endfor %}
         </div>
-      </div>
-
-      <!-- Thumbnail Navigation -->
-      <div class="thumbnail-nav">
-        <div class="thumbnail-track">
-          <!-- Cover thumbnail -->
-          <div class="thumbnail-item" data-spread="0">
-            <div class="thumbnail-img-wrapper">
-              <div class="thumbnail-img cover-thumb">
-                <span>Cover</span>
-              </div>
-            </div>
-            <span class="thumbnail-label">Cover</span>
-          </div>
-          
-          <!-- Page thumbnails - each spread shows one representative image -->
-          {% assign thumb_spread = 1 %}
-          {% for image in images offset:1 %}
-            <div class="thumbnail-item" data-spread="{{ thumb_spread }}">
-              <div class="thumbnail-img-wrapper">
-                <img src="{{ image.url }}" alt="Page Spread {{ thumb_spread }}" class="thumbnail-img">
-              </div>
-              <span class="thumbnail-label">Page {{ forloop.index | times: 2 | minus: 1 }}-{{ forloop.index | times: 2 }}</span>
-            </div>
-            {% assign thumb_spread = thumb_spread | plus: 1 %}
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Navigation Buttons -->
+          <!-- Navigation Buttons -->
   <button class="book-prev-next prev">
     <div class="flex items-center gap-1 bg-white/90 backdrop-blur px-5 py-3 rounded-full shadow-xl">
       <svg viewBox="0 0 24 24" fill="none" class="w-5 h-5">
@@ -202,6 +158,49 @@
       </svg>
     </div>
   </button>
+      </div>
+
+      <!-- Thumbnail Navigation -->
+      <!-- 
+        Thumbnail logic:
+        - Spread 0 = cover (image[0])
+        - Spread 1 = image[1]+image[2]  → label "1-2"
+        - Spread 2 = image[3]+image[4]  → label "3-4"
+        - etc.
+        Total thumbnails = 1 (cover) + ceil((array_length-1)/2) inner spreads
+        We iterate images offset:1, step 2 by only emitting on odd forloop.index (1,3,5...)
+      -->
+      <div class="thumbnail-nav">
+        <div class="thumbnail-track">
+          <!-- Cover thumbnail -->
+          <div class="thumbnail-item" data-spread="0">
+            <div class="thumbnail-img-wrapper">
+              <img src="{{ pdfData.images[0].url }}" alt="Cover" class="thumbnail-img">
+            </div>
+            <span class="thumbnail-label">Cover</span>
+          </div>
+
+          {% assign thumb_spread = 1 %}
+          {% assign thumb_img_idx = 1 %}
+          {% assign thumb_total = array_length | minus: 1 | divided_by: 2 | ceil %}
+          {% for s in (1..thumb_total) %}
+            {% assign front_num = thumb_img_idx %}
+            {% assign back_num = thumb_img_idx | plus: 1 %}
+            <div class="thumbnail-item" data-spread="{{ thumb_spread }}">
+              <div class="thumbnail-img-wrapper">
+                <img src="{{ pdfData.images[front_num].url }}" alt="Pages {{ front_num }}-{{ back_num }}" class="thumbnail-img">
+              </div>
+              <span class="thumbnail-label">{{ front_num }}-{{ back_num }}</span>
+            </div>
+            {% assign thumb_spread = thumb_spread | plus: 1 %}
+            {% assign thumb_img_idx = thumb_img_idx | plus: 2 %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+
 </div>
 
 <script src="{{ 'main.js' | asset_url }}" defer="defer"></script>
