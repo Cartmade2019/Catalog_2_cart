@@ -42,9 +42,12 @@ const ButtonDesign = ({ buttonSettings: { jsonValue } }: any) => {
   const [backgroundColor, setBackgroundColor] = useState(
     jsonValue?.backgroundColor || "#000000",
   );
-  const [textColor, setTextColor] = useState("#fff433");
+   const [textColor, setTextColor] = useState(jsonValue?.textColor || "#ffffff");
 
-  const handleButtonTextChange = (value: string) => setButtonText(value);
+const [buttonTextError, setButtonTextError] = useState("");
+  const handleButtonTextChange = (value: string) =>{ setButtonText(value);
+     if (value.trim()) setButtonTextError("");
+  };
   const handleFontSizeChange = (value: number) => setFontSize(value);
   const handlePaddingYChange = (value: number) => setPaddingY(value);
   const handlePaddingXChange = (value: number) => setPaddingX(value);
@@ -53,6 +56,12 @@ const ButtonDesign = ({ buttonSettings: { jsonValue } }: any) => {
   const handleBorderWidthChange = (value: number) => setBorderWidth(value);
 
   const handleSubmit = () => {
+
+    if (!buttonText.trim()) {
+     setButtonTextError("Button text is required");
+     return;
+   }
+
     const formData = new FormData();
     formData.append("source", "ButtonDesign");
     formData.append("buttonText", buttonText);
@@ -163,6 +172,7 @@ const ButtonDesign = ({ buttonSettings: { jsonValue } }: any) => {
                   label="Button Title"
                   value={buttonText}
                   onChange={handleButtonTextChange}
+                  error={buttonTextError || undefined}
                 />
               </div>
 

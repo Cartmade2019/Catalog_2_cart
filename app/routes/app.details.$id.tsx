@@ -600,7 +600,7 @@ const DetailPage = () => {
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22C55E" }} />
               <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Interactive Catalog Editor</span>
             </div>
-            <span style={{ fontSize: 12, color: "#94A3B8" }}>Click any page to add a hotspot · Changes save automatically</span>
+            <span style={{ fontSize: 12, color: "#94A3B8" }}>Click any page to add a hotspot </span>
           </div>
           <PageFlip
             pdfName={pdfData.pdfName}

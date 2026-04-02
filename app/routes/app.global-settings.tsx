@@ -193,7 +193,7 @@ const GlobalSettings = () => {
   });
 };
 
-  const buttonSettings = loaderData?.buttonSettings || {};
+  const buttonSettings = loaderData?.buttonSettings|| {};
   const tooltipSettings = loaderData?.tooltipSettings || {};
 const appStatusSettings = loaderData?.appStatusSettings || {};
 const [enabled, setEnabled] = useState(

@@ -41,7 +41,7 @@
   display: flex;
   margin: 0 auto 3rem auto;
   width: 50%;
-  max-width: 900px;
+  max-width: 960px;
   min-width: 340px;
   transform-style: preserve-3d;
   transition: translate 0.8s cubic-bezier(0.23, 1, 0.32, 1);
