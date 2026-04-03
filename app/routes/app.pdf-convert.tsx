@@ -213,8 +213,8 @@ console.log(pageFormat);
       const response = await data.json();
       const pageInfo = response.data.shop.metafields.pageInfo;
       const nodes = response.data.shop.metafields.edges.map((e: any) => e.node);
-      if (!nodes.length) return { pdfData: [], pricePlan: pricePlan.recurring_application_charges[0], pageInfo, query: Q };
-      return { pdfData: nodes.map((pdf: any) => ({ id: pdf.id.split("/").pop(), pdfName: pdf.jsonValue?.pdfName ?? "Untitled Document", frontPage: pdf.jsonValue?.images?.[0]?.url ?? "", allImages: pdf.jsonValue?.images ?? [], pageCount: pdf.jsonValue?.images?.length ?? 0, hotspotCount: pdf.jsonValue?.images?.reduce((s: number, img: any) => s + (img.points?.length ?? 0), 0) ?? 0, size: pdf.jsonValue?.pdfSizeInKB ?? "", date: pdf.jsonValue?.date ?? "", key: pdf.key, namespace: pdf.namespace, targetPage: pdf.jsonValue?.targetPage ?? "none", targetPageLabel: pdf.jsonValue?.targetPageLabel ?? "" })), pricePlan: pricePlan.recurring_application_charges[0], pageInfo, query: Q };
+      if (!nodes.length) return { pdfData: [], pricePlan: pricePlan.recurring_application_charges.find((c:any)=>c.status === "active") ?? null, pageInfo, query: Q };
+      return { pdfData: nodes.map((pdf: any) => ({ id: pdf.id.split("/").pop(), pdfName: pdf.jsonValue?.pdfName ?? "Untitled Document", frontPage: pdf.jsonValue?.images?.[0]?.url ?? "", allImages: pdf.jsonValue?.images ?? [], pageCount: pdf.jsonValue?.images?.length ?? 0, hotspotCount: pdf.jsonValue?.images?.reduce((s: number, img: any) => s + (img.points?.length ?? 0), 0) ?? 0, size: pdf.jsonValue?.pdfSizeInKB ?? "", date: pdf.jsonValue?.date ?? "", key: pdf.key, namespace: pdf.namespace, targetPage: pdf.jsonValue?.targetPage ?? "none", targetPageLabel: pdf.jsonValue?.targetPageLabel ?? "" })), pricePlan: pricePlan.recurring_application_charges.find((c:any)=>c.status === "active") ?? null, pageInfo, query: Q };
     } catch { return { error: "Unexpected error occurred while fetching metafields." }; }
   }
 
@@ -248,8 +248,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const response = await data.json();
     const pageInfo = response.data.shop.metafields.pageInfo;
     const nodes = response.data.shop.metafields.edges.map((e: any) => e.node);
-    if (!nodes.length) return { pdfData: [], pricePlan: pricePlan.recurring_application_charges[0], pageInfo, query: Q };
-    return { pdfData: nodes.map((pdf: any) => ({ id: pdf.id.split("/").pop(), pdfName: pdf.jsonValue?.pdfName ?? "Untitled Document", frontPage: pdf.jsonValue?.images?.[0]?.url ?? "", allImages: pdf.jsonValue?.images ?? [], pageCount: pdf.jsonValue?.images?.length ?? 0, hotspotCount: pdf.jsonValue?.images?.reduce((s: number, img: any) => s + (img.points?.length ?? 0), 0) ?? 0, size: pdf.jsonValue?.pdfSizeInKB ?? "", date: pdf.jsonValue?.date ?? "", key: pdf.key, namespace: pdf.namespace, targetPage: pdf.jsonValue?.targetPage ?? "none", targetPageLabel: pdf.jsonValue?.targetPageLabel ?? "" })), pricePlan: pricePlan.recurring_application_charges[0], pageInfo, query: Q };
+    if (!nodes.length) return { pdfData: [],pricePlan: pricePlan.recurring_application_charges.find((c:any)=>c.status === "active") ?? null, pageInfo, query: Q };
+    return { pdfData: nodes.map((pdf: any) => ({ id: pdf.id.split("/").pop(), pdfName: pdf.jsonValue?.pdfName ?? "Untitled Document", frontPage: pdf.jsonValue?.images?.[0]?.url ?? "", allImages: pdf.jsonValue?.images ?? [], pageCount: pdf.jsonValue?.images?.length ?? 0, hotspotCount: pdf.jsonValue?.images?.reduce((s: number, img: any) => s + (img.points?.length ?? 0), 0) ?? 0, size: pdf.jsonValue?.pdfSizeInKB ?? "", date: pdf.jsonValue?.date ?? "", key: pdf.key, namespace: pdf.namespace, targetPage: pdf.jsonValue?.targetPage ?? "none", targetPageLabel: pdf.jsonValue?.targetPageLabel ?? "" })), pricePlan: pricePlan.recurring_application_charges.find((c:any)=>c.status === "active") ?? null, pageInfo, query: Q };
   } catch { return { error: "Unexpected error occurred while fetching metafields." }; }
 };
 
@@ -634,9 +634,8 @@ const PdfConvert = () => {
   const jobIdRef = useRef<string | null>(null);
 
   const plan = useSelector((s: any) => s.plan.plan);
-  const planName = getPlanName(plan);
-  console.log("Current plan:", planName);
-  const limits = getPlanLimits(plan);
+  const planName = getPlanName(loaderData?.pricePlan?.name ?? plan);
+  const limits = getPlanLimits(planName);
   const maxCatalogs = limits.catalogs;
   const maxUploadSizeBytes = limits.pdfSizeBytes;
   const maxUploadSizeMB = bytesToMB(maxUploadSizeBytes);
