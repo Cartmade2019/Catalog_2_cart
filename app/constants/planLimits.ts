@@ -11,7 +11,7 @@ Basic: {
   hotspotsPerPage: 3,
   pdfSizeBytes: 15 * 1024 * 1024,
 },
-Advanced: {
+Advance: {
   catalogs: 20,
   hotspotsTotal: null,
   hotspotsPerPage: Infinity,
@@ -22,11 +22,8 @@ Advanced: {
 export type PlanName = keyof typeof PLAN_LIMITS;
 
 export function getPlanName(plan: any): PlanName {
-  const rawName = plan?.name;
-
-  if (rawName === "Basic") return "Basic";
-  if (rawName === "Advanced") return "Advanced";
-
+  if (plan === "Basic") return "Basic";
+  if (plan === "Advance") return "Advance";
   return "Free";
 }
 

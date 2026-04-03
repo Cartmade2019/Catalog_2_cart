@@ -238,7 +238,7 @@ const STEPS = [
         </TipBox>
 
         <div>
-          <p style={{ fontSize: 11, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 12px" }}>Advanced — Liquid snippet</p>
+          <p style={{ fontSize: 11, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 12px" }}>Advance — Liquid snippet</p>
           <p style={{ fontSize: 15, color: "#64748B", margin: "0 0 12px", lineHeight: 1.6 }}>
             Prefer manual control? Embed the viewer via a Liquid snippet using the catalog key shown in the Catalog listing.
           </p>

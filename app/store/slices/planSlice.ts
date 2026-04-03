@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { act } from "react";
 
 interface InitialStateProp {
   plan: string;
@@ -11,6 +12,7 @@ const planSlice = createSlice({
   initialState,
   reducers: {
     addPlan: (state, action: PayloadAction<string>) => {
+      console.log(action.payload,"FROM STOR");
       state.plan = action.payload;
     },
   },

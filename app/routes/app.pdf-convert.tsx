@@ -38,7 +38,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { headers: { "X-Shopify-Access-Token": accessToken } },
     );
     const activePlan = pricePlan?.recurring_application_charges?.find((charge: any) => charge.status === "active");
-    const planName = activePlan?.name === "Basic" ? "Basic" : activePlan?.name === "Advanced" ? "Advanced" : "Free";
+
+    const planName = activePlan?.name === "Basic" ? "Basic" : activePlan?.name === "Advance" ? "Advance" : "Free";
+    
     const limits = PLAN_LIMITS[planName];
     const maxCatalogs = limits.catalogs;
     const maxUploadSizeBytes = limits.pdfSizeBytes;
@@ -239,6 +241,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { apiVersion, authenticate } = await import("../shopify.server");
   const { admin, session: { accessToken, shop } } = await authenticate.admin(request);
   const { data: pricePlan } = await axios.get(`https://${shop}/admin/api/${apiVersion}/recurring_application_charges.json`, { headers: { "X-Shopify-Access-Token": accessToken } });
+  console.log(pricePlan.recurring_application_charges.find((charge: any) => charge.status === "active"));
   const Q = `query GetPDFQuery { shop { metafields(first: ${valueToFetch}, namespace: "PDF", reverse: true) { pageInfo { hasPreviousPage hasNextPage startCursor endCursor } edges { node { id namespace key jsonValue type } } } } }`;
   try {
     const data = await admin.graphql(Q);
@@ -632,14 +635,16 @@ const PdfConvert = () => {
 
   const plan = useSelector((s: any) => s.plan.plan);
   const planName = getPlanName(plan);
+  console.log("Current plan:", planName);
   const limits = getPlanLimits(plan);
   const maxCatalogs = limits.catalogs;
   const maxUploadSizeBytes = limits.pdfSizeBytes;
   const maxUploadSizeMB = bytesToMB(maxUploadSizeBytes);
   const atLimit = pdfList.length >= maxCatalogs;
+  console.log("LLOADERERRERER",loaderData.pricePlan.name);
 
   useEffect(() => {
-    if (loaderData?.pricePlan) dispatch(addPlan(loaderData.pricePlan));
+    if (loaderData?.pricePlan) dispatch(addPlan(loaderData.pricePlan.name));
     if (loaderData?.pdfData) setPdfList(loaderData.pdfData);
     if (loaderData?.pageInfo) setPageInfo(loaderData.pageInfo);
     if (loaderData?.query) setQuery(loaderData.query);
