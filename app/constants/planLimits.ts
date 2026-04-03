@@ -26,7 +26,7 @@ export function getPlanName(plan: any): PlanName {
   if (plan === "Advance") return "Advance";
   return "Free";
 }
-
+//test
 export function getPlanLimits(plan: any) {
   const planName = getPlanName(plan);
   return PLAN_LIMITS[planName];
