@@ -1,129 +1,202 @@
 {{ 'https://cdn.tailwindcss.com' | script_tag }}
+
 {{ 'main.css' | asset_url | stylesheet_tag }}
 
 {% assign pdfMetafields = shop.metafields.PDF %}
-{% assign buttonHotspot = shop.metafields.cartmade['cod_button_settings'] %}
-{% assign tooltipHotspot = shop.metafields.cartmade['cod_tooltip_settings'] %}
+
+{% assign buttonHotspot = shop.metafields.cartmade.cod_button_settings %}
+
+{% assign tooltipHotspot = shop.metafields.cartmade.cod_tooltip_settings %}
+
 {% assign pdfMetafield = pdfMetafields[block.settings.metafield_key] %}
+
 {% assign pdfData = pdfMetafield.value %}
+
 {% assign buttonData = buttonHotspot.value %}
+
 {% assign toolTipData = tooltipHotspot.value %}
 
 {% assign array_length = pdfData.images | size %}
+
 {% assign images = pdfData.images %}
 
 {% comment %} Determine if wide-format mode is needed (anything other than A4) {% endcomment %}
+
 {% assign pageFormat = pdfData.pageFormat | default: 'A4' | upcase %}
+
 {% if pageFormat == 'A4' %}
   {% assign isWideFormat = false %}
+
 {% else %}
   {% assign isWideFormat = true %}
 {% endif %}
 
 {% for image in images %}
   {% assign pageIndex = forloop.index | minus: 1 %}
+
   {% for point in image.points %}
     {% assign hotSpotIndex = forloop.index %}
-    {% render 'tooltip', 
-      data_page_index: pageIndex, 
-      data_hotspot_index: hotSpotIndex, 
+
+    {% render 'tooltip',
+      data_page_index: pageIndex,
+      data_hotspot_index: hotSpotIndex,
       buttonData: buttonData,
       tooltipData: toolTipData,
-      handle: point.handle 
+      handle: point.handle
     %}
   {% endfor %}
 {% endfor %}
 
 {%- style -%}
   .section-{{ block.id }}-padding {
+
     padding-top: {{ block.settings.padding_top | times: 0.75 | round: 0 }}px;
+
     padding-bottom: {{ block.settings.padding_bottom | times: 0.75 | round: 0 }}px;
+
   }
+
   @media screen and (min-width: 750px) {
+
     .section-{{ block.id }}-padding {
+
       padding-top: {{ block.settings.padding_top }}px;
+
       padding-bottom: {{ block.settings.padding_bottom }}px;
+
     }
+
   }
 {%- endstyle -%}
 
-
-
 <!-- Main Flipbook Section -->
+
 <div class="relative">
   <div class="pdf-main-container section-{{ block.id }}-padding relative" style="display:flex; justify-content:center;">
     <div class="pdf-body-wrapper">
-  
       <!-- Book Container -->
-      <div class="book-container">
-        <div class="book{% if isWideFormat %} wide-format{% endif %}" data-wide-format="{{ isWideFormat }}" data-pdf-format="{{ pageFormat }}">
 
+      <div class="book-container">
+        <div
+          class="book{% if isWideFormat %} wide-format{% endif %}"
+          data-wide-format="{{ isWideFormat }}"
+          data-pdf-format="{{ pageFormat }}"
+        >
           <!--
             PAGE SPREAD 0: COVER
+
             - front  = pdfName title (always, for all formats)
+
             - back   = wide format: wide-front of image[0] (RIGHT half, so image[0] fills full spread when open)
+
                        A4 format:   blank/empty (book closed look)
 
+
+
             Wide format open-book layout:
+
               LEFT  side = .back  of spread N   (wide-back,  background-position: left center  → left  half of image)
+
               RIGHT side = .front of spread N+1 (wide-front, background-position: right center → right half of image)
 
+
+
             For image[0] to fill the first open spread:
+
               Spread 0 back  → wide-front of image[0]  (becomes LEFT  side, but we want RIGHT half... )
 
+
+
             Wait — .back has rotate: 0 1 0 180deg so local X is mirrored.
+
             wide-back  uses background-position: left center  → after mirror = visual LEFT  half ✓
+
             wide-front uses background-position: right center → after mirror on .back = visual RIGHT half ✗
 
+
+
             Correct mapping:
+
               LEFT  side = .back  of spread N  → class wide-back  (background-position: left center)
+
               RIGHT side = .front of spread N  → class wide-front (background-position: right center)
 
+
+
             So for image[i] to span a full open spread:
+
               Spread N back  = wide-back  with image[i]   → shows LEFT  half visually
+
               Spread N+1 front = wide-front with image[i] → shows RIGHT half visually
 
+
+
             Cover spread (spread 0):
+
               front = cover title
+
               back  = wide-back with image[0]  → LEFT half of image[0] shown on left page
 
+
+
             Spread 1:
+
               front = wide-front with image[0] → RIGHT half of image[0] shown on right page
+
               back  = wide-back  with image[1] → LEFT  half of image[1]
 
+
+
             Spread 2:
+
               front = wide-front with image[1]
+
               back  = wide-back  with image[2]
+
             ...
           -->
+
           <div class="page">
             <div class="front cover">
               {% if pdfData.coverImage %}
                 <img src="{{ pdfData.coverImage }}" alt="{{ pdfData.pdfName }}">
+
               {% else %}
                 <div class="cover-title-wrap">
                   <span class="cover-title">{{ pdfData.pdfName }}</span>
                 </div>
               {% endif %}
             </div>
+
             {% if isWideFormat %}
               <!-- Back of cover = LEFT half of image[0], so image[0] fills the spread when cover is flipped -->
+
               <div class="back wide-back relative" style="background-image: url('{{ pdfData.images[0].url }}');">
                 {% assign cover_points = pdfData.images[0].points %}
+
                 {% for point in cover_points %}
                   {% comment %}
                     Same wide-back mirror formula as inner spreads:
+
                     Only left-half points (xPercentage < 50).
+
                     panel_x = xPercentage * 2  →  css_left = 100 - panel_x
                   {% endcomment %}
+
                   {% if point.xPercentage < 50 %}
                     {% assign panel_x = point.xPercentage | times: 2 %}
+
                     {% assign css_left = 100 | minus: panel_x %}
-                    <div data-id="hotspot-0-{{forloop.index}}"
-                         class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{css_left}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse">
+
+                    <div
+                      data-id="hotspot-0-{{forloop.index}}"
+
+                      class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{css_left}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse"
+                    >
                       <div class="image-hotspots--pin-button hotspot--pinned active">
                         <svg width="25" height="25" viewBox="0 0 25 25" fill="none">
                           <rect width="25" height="25" rx="12.5" stroke="#F1EFED" stroke-width="9"/>
+
                           <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none" stroke="#F1EFED" stroke-width="9"/>
                         </svg>
                       </div>
@@ -131,10 +204,12 @@
                   {% endif %}
                 {% endfor %}
               </div>
+
             {% else %}
               <div class="back">
                 {% if pdfData.images[0] %}
                   <img src="{{ pdfData.images[0].url }}" alt="Page 1">
+
                 {% else %}
                   <div class="empty-page"></div>
                 {% endif %}
@@ -145,36 +220,60 @@
           {% if isWideFormat %}
             <!--
               WIDE FORMAT inner spreads:
+
                 Spread 1 front = wide-front image[0] (RIGHT half) + back = wide-back image[1] (LEFT half)
+
                 Spread 2 front = wide-front image[1]              + back = wide-back image[2]
+
                 ...
+
                 Spread N front = wide-front image[N-1]            + back = wide-back image[N] (or empty)
+
               Total inner spreads = array_length (covers image[0] right-half through image[N-1] right-half)
             -->
+
             {% assign total_spreads = array_length %}
+
             {% for spread_idx in (1..total_spreads) %}
               {% assign front_img_idx = spread_idx | minus: 1 %}
-              {% assign back_img_idx  = spread_idx %}
+
+              {% assign back_img_idx = spread_idx %}
+
               <div class="page">
                 <!-- front = RIGHT half of image[front_img_idx] (completes the spread started by previous back) -->
+
                 {% if front_img_idx < array_length %}
-                  <div class="front wide-front relative" style="background-image: url('{{ pdfData.images[front_img_idx].url }}');">
+                  <div
+                    class="front wide-front relative"
+                    style="background-image: url('{{ pdfData.images[front_img_idx].url }}');"
+                  >
                     {% assign points = pdfData.images[front_img_idx].points %}
+
                     {% for point in points %}
                       {% comment %}
                         wide-front shows the RIGHT half of the image via background-size:200% / background-position:right.
+
                         The editor stores xPercentage as a percentage of the FULL image width (0–100%).
+
                         wide-front displays x=50–100% of the image, scaled to fill the panel (0–100% panel space).
+
                         Only render hotspots whose image-x is in the right half (>= 50%).
+
                         Convert to panel space: panel_x = (xPercentage - 50) * 2
                       {% endcomment %}
+
                       {% if point.xPercentage >= 50 %}
                         {% assign panel_x = point.xPercentage | minus: 50 | times: 2 %}
-                        <div data-id="hotspot-{{front_img_idx}}-{{forloop.index}}"
-                             class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{panel_x}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse">
+
+                        <div
+                          data-id="hotspot-{{front_img_idx}}-{{forloop.index}}"
+
+                          class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{panel_x}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse"
+                        >
                           <div class="image-hotspots--pin-button hotspot--pinned active">
                             <svg width="25" height="25" viewBox="0 0 25 25" fill="none">
                               <rect width="25" height="25" rx="12.5" stroke="#F1EFED" stroke-width="9"/>
+
                               <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none" stroke="#F1EFED" stroke-width="9"/>
                             </svg>
                           </div>
@@ -182,35 +281,59 @@
                       {% endif %}
                     {% endfor %}
                   </div>
+
                 {% else %}
                   <div class="front wide-front"></div>
                 {% endif %}
+
                 <!-- back = LEFT half of image[back_img_idx] (starts the next spread) -->
+
                 {% if back_img_idx < array_length %}
-                  <div class="back wide-back relative" style="background-image: url('{{ pdfData.images[back_img_idx].url }}');">
+                  <div
+                    class="back wide-back relative"
+                    style="background-image: url('{{ pdfData.images[back_img_idx].url }}');"
+                  >
                     {% assign points = pdfData.images[back_img_idx].points %}
+
                     {% for point in points %}
                       {% comment %}
                         wide-back shows the LEFT half of the image via background-size:200% / background-position:left.
+
                         The editor stores xPercentage as a percentage of the FULL image width (0–100%).
+
                         wide-back displays x=0–50% of the image, scaled to fill the panel (0–100% panel space).
+
                         Only render hotspots whose image-x is in the left half (< 50%).
 
+
+
                         .back has CSS rotate:0 1 0 180deg which MIRRORS the local X axis.
-                        So `left: N%` in CSS appears at visual position (100 - N)% from the left.
+
+                        So left: N% in CSS appears at visual position (100 - N)% from the left.
+
                         To appear at desired visual panel_x%, we must set: css_left = 100 - panel_x
 
+
+
                         Convert: panel_x = xPercentage * 2   (maps 0–50 → 0–100)
+
                                  css_left = 100 - panel_x
                       {% endcomment %}
+
                       {% if point.xPercentage < 50 %}
                         {% assign panel_x = point.xPercentage | times: 2 %}
+
                         {% assign css_left = 100 | minus: panel_x %}
-                        <div data-id="hotspot-{{back_img_idx}}-{{forloop.index}}"
-                             class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{css_left}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse">
+
+                        <div
+                          data-id="hotspot-{{back_img_idx}}-{{forloop.index}}"
+
+                          class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{css_left}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse"
+                        >
                           <div class="image-hotspots--pin-button hotspot--pinned active">
                             <svg width="25" height="25" viewBox="0 0 25 25" fill="none">
                               <rect width="25" height="25" rx="12.5" stroke="#F1EFED" stroke-width="9"/>
+
                               <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none" stroke="#F1EFED" stroke-width="9"/>
                             </svg>
                           </div>
@@ -218,6 +341,7 @@
                       {% endif %}
                     {% endfor %}
                   </div>
+
                 {% else %}
                   <div class="back wide-back"></div>
                 {% endif %}
@@ -227,34 +351,48 @@
           {% else %}
             <!--
               A4 FORMAT:
+
               Cover back already shows image[0], so inner spreads start at image[1].
+
               Spread 1: front=image[1], back=image[2]
+
               Spread 2: front=image[3], back=image[4], etc.
             -->
+
             {% assign index = 1 %}
+
             {% assign remaining = array_length | minus: 1 %}
+
             {% assign total_spreads = remaining | divided_by: 2 | ceil %}
 
             {% for spread_idx in (1..total_spreads) %}
               {% assign front_img_idx = index %}
+
               {% assign back_img_idx = index | plus: 1 %}
 
               <div class="page">
                 <div class="front relative">
                   {% if front_img_idx < array_length %}
                     <img src="{{ pdfData.images[front_img_idx].url }}" alt="Page {{ front_img_idx | plus: 1 }}">
+
                     {% assign points = pdfData.images[front_img_idx].points %}
+
                     {% for point in points %}
-                      <div data-id="hotspot-{{front_img_idx}}-{{forloop.index}}"
-                           class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse">
+                      <div
+                        data-id="hotspot-{{front_img_idx}}-{{forloop.index}}"
+
+                        class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse"
+                      >
                         <div class="image-hotspots--pin-button hotspot--pinned active">
                           <svg width="25" height="25" viewBox="0 0 25 25" fill="none">
                             <rect width="25" height="25" rx="12.5" stroke="#F1EFED" stroke-width="9"/>
+
                             <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none" stroke="#F1EFED" stroke-width="9"/>
                           </svg>
                         </div>
                       </div>
                     {% endfor %}
+
                   {% else %}
                     <div class="empty-page"></div>
                   {% endif %}
@@ -263,18 +401,25 @@
                 <div class="back">
                   {% if back_img_idx < array_length %}
                     <img src="{{ pdfData.images[back_img_idx].url }}" alt="Page {{ back_img_idx | plus: 1 }}">
+
                     {% assign points = pdfData.images[back_img_idx].points %}
+
                     {% for point in points %}
-                      <div data-id="hotspot-{{back_img_idx}}-{{forloop.index}}"
-                           class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse">
+                      <div
+                        data-id="hotspot-{{back_img_idx}}-{{forloop.index}}"
+
+                        class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse"
+                      >
                         <div class="image-hotspots--pin-button hotspot--pinned active">
                           <svg width="25" height="25" viewBox="0 0 25 25" fill="none">
                             <rect width="25" height="25" rx="12.5" stroke="#F1EFED" stroke-width="9"/>
+
                             <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none" stroke="#F1EFED" stroke-width="9"/>
                           </svg>
                         </div>
                       </div>
                     {% endfor %}
+
                   {% else %}
                     <div class="empty-page"></div>
                   {% endif %}
@@ -285,50 +430,57 @@
             {% endfor %}
           {% endif %}
         </div>
-          <!-- Navigation Buttons -->
-  <button class="book-prev-next prev">
-    <div class="flex items-center gap-1 bg-white/90 backdrop-blur px-5 py-3 rounded-full shadow-xl">
-      <svg viewBox="0 0 24 24" fill="none" class="w-5 h-5">
-        <path d="M10.5303 5.46967C10.8232 5.76256 10.8232 6.23744 10.5303 6.53033L5.81066 11.25H20C20.4142 11.25 20.75 11.5858 20.75 12C20.75 12.4142 20.4142 12.75 20 12.75H5.81066L10.5303 17.4697C10.8232 17.7626 10.8232 18.2374 10.5303 18.5303C10.2374 18.8232 9.76256 18.8232 9.46967 18.5303L3.46967 12.5303C3.17678 12.2374 3.17678 11.7626 3.46967 11.4697L9.46967 5.46967C9.76256 5.17678 10.2374 5.17678 10.5303 5.46967Z" fill="#1C274C"/>
-      </svg>
-      <span class="font-medium">Prev</span>
-    </div>
-  </button>
-  <button class="book-prev-next next">
-    <div class="flex items-center gap-1 bg-white/90 backdrop-blur px-5 py-3 rounded-full shadow-xl">
-      <span class="font-medium">Next</span>
-      <svg viewBox="0 0 24 24" fill="none" class="w-5 h-5">
-        <path d="M4 12H20M20 12L14 6M20 12L14 18" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
-  </button>
+
+        <!-- Navigation Buttons -->
+
+        <button class="book-prev-next prev">
+          <div class="flex items-center gap-1 bg-white/90 backdrop-blur px-5 py-3 rounded-full shadow-xl">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M14.071 5L7.70708 11.364C7.31656 11.7545 7.31656 12.3877 7.70708 12.7782L14.071 19.1421" stroke="#000000" stroke-linecap="round"></path> </g>
+            </svg>
+          </div>
+        </button>
+
+        <button class="book-prev-next next">
+          <div class="flex items-center gap-1 bg-white/90 backdrop-blur px-5 py-3 rounded-full shadow-xl">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M9.92896 4.85785L16.2929 11.2218C16.6834 11.6123 16.6834 12.2455 16.2929 12.636L9.92896 19" stroke="#000000" stroke-linecap="round"></path> </g>
+            </svg>
+          </div>
+        </button>
       </div>
 
       <!-- Thumbnail Navigation -->
+
       <div class="thumbnail-nav">
         <div class="thumbnail-track">
-
           <!-- Cover thumbnail -->
+
           <div class="thumbnail-item" data-spread="0">
             <div class="thumbnail-img-wrapper {% unless pdfData.coverImage %}cover-thumb{% endunless %}">
               {% if pdfData.coverImage %}
                 <img src="{{ pdfData.coverImage }}" alt="{{ pdfData.pdfName }}" class="thumbnail-img">
+
               {% else %}
                 <span>{{ pdfData.pdfName | truncate: 10, '' }}</span>
               {% endif %}
             </div>
+
             <span class="thumbnail-label">Cover</span>
           </div>
 
           {% if isWideFormat %}
             <!-- WIDE FORMAT thumbnails: 1 image per spread, starting image[0] -->
+
             {% for s in (0..array_length) %}
               {% assign thumb_spread = s | plus: 1 %}
+
               {% if s < array_length %}
                 <div class="thumbnail-item" data-spread="{{ thumb_spread }}">
                   <div class="thumbnail-img-wrapper">
                     <img src="{{ pdfData.images[s].url }}" alt="Page {{ s | plus: 1 }}" class="thumbnail-img">
                   </div>
+
                   <span class="thumbnail-label">{{ s | plus: 1 }}</span>
                 </div>
               {% endif %}
@@ -336,30 +488,98 @@
 
           {% else %}
             <!-- A4 FORMAT thumbnails: cover back=image[0], so spreads start at image[1] -->
+
             {% assign thumb_spread = 1 %}
+
             {% assign thumb_img_idx = 1 %}
+
             {% assign remaining = array_length | minus: 1 %}
+
             {% assign thumb_total = remaining | divided_by: 2 | ceil %}
+
             {% for s in (1..thumb_total) %}
               {% assign front_num = thumb_img_idx %}
+
               {% assign back_num = thumb_img_idx | plus: 1 %}
+
               <div class="thumbnail-item" data-spread="{{ thumb_spread }}">
                 <div class="thumbnail-img-wrapper">
-                  <img src="{{ pdfData.images[front_num].url }}" alt="Pages {{ front_num | plus: 1 }}-{{ back_num | plus: 1 }}" class="thumbnail-img">
+                  <img
+                    src="{{ pdfData.images[front_num].url }}"
+                    alt="Pages {{ front_num | plus: 1 }}-{{ back_num | plus: 1 }}"
+                    class="thumbnail-img"
+                  >
                 </div>
+
                 <span class="thumbnail-label">{{ front_num | plus: 1 }}-{{ back_num | plus: 1 }}</span>
               </div>
+
               {% assign thumb_spread = thumb_spread | plus: 1 %}
+
               {% assign thumb_img_idx = thumb_img_idx | plus: 2 %}
             {% endfor %}
           {% endif %}
-
         </div>
       </div>
     </div>
   </div>
+</div>
 
+{% comment %} Mobile Book Viewer {% endcomment %}
+<div class="mobile-book-viewer">
+  <button class="mobile-book-nav prev" aria-label="Previous page">
+    <span>
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M14.071 5L7.70708 11.364C7.31656 11.7545 7.31656 12.3877 7.70708 12.7782L14.071 19.1421" stroke="#000000" stroke-linecap="round"></path> </g>
+      </svg>
+    </span>
+  </button>
 
+  <div class="mobile-book-stage">
+    <div class="mobile-book-track">
+      {% if pdfData.coverImage %}
+        <div class="mobile-book-page active" data-page-index="0">
+          <img src="{{ pdfData.coverImage }}" alt="{{ pdfData.pdfName }}">
+        </div>
+      {% else %}
+        <div class="mobile-book-page active cover-page" data-page-index="0">
+          <div class="cover-title-wrap">
+            <span class="cover-title">{{ pdfData.pdfName }}</span>
+          </div>
+        </div>
+      {% endif %}
+
+      {% for image in pdfData.images %}
+        {% assign mobile_page_index = forloop.index %}
+        <div class="mobile-book-page" data-page-index="{{ mobile_page_index }}">
+          <img src="{{ image.url }}" alt="Page {{ mobile_page_index }}">
+
+          {% assign points = image.points %}
+          {% for point in points %}
+            <div
+              data-id="mobile-hotspot-{{ mobile_page_index }}-{{ forloop.index }}"
+              class="custom-hotspot mobile-points absolute z-[999] top-[{{ point.yPercentage }}%] left-[{{ point.xPercentage }}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse"
+            >
+              <div class="image-hotspots--pin-button hotspot--pinned active">
+                <svg width="25" height="25" viewBox="0 0 25 25" fill="none">
+                  <rect width="25" height="25" rx="12.5" stroke="#F1EFED" stroke-width="9"/>
+                  <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none" stroke="#F1EFED" stroke-width="9"/>
+                </svg>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <button class="mobile-book-nav next" aria-label="Next page">
+    <span>
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M9.92896 4.85785L16.2929 11.2218C16.6834 11.6123 16.6834 12.2455 16.2929 12.636L9.92896 19" stroke="#000000" stroke-linecap="round"></path> </g>
+      </svg>
+    </span>
+  </button>
 </div>
 
 <script src="{{ 'main.js' | asset_url }}" defer="defer"></script>
@@ -367,37 +587,61 @@
 {% schema %}
 {
   "name": "PDF-CONVERTER",
+
   "class": "section",
+
   "target": "section",
+
   "settings": [
     {
       "type": "text",
+
       "id": "metafield_key",
+
       "label": "PDF KEY",
+
       "default": "PDF KEY"
     },
+
     {
       "type": "header",
+
       "content": "Section padding"
     },
+
     {
       "type": "range",
+
       "id": "padding_top",
+
       "min": 0,
+
       "max": 200,
+
       "step": 4,
+
       "unit": "px",
+
       "label": "padding top",
+
       "default": 36
     },
+
     {
       "type": "range",
+
       "id": "padding_bottom",
+
       "min": 0,
+
       "max": 100,
+
       "step": 4,
+
       "unit": "px",
+
       "label": "padding bottom",
+
       "default": 36
     }
   ]

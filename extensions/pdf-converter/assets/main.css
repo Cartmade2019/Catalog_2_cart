@@ -1,201 +1,396 @@
 * {
+
   margin: 0;
+
   padding: 0;
+
   box-sizing: border-box;
+
 }
+
+
 
 /* Flipbook Container - Realistic Book Background */
+
 .pdf-body-wrapper {
+
   margin: 0 auto;
+
   display: flex;
+
   flex-direction: column;
+
   align-items: center;
+
   width: 100%;
+
   max-width: 1100px;
+
   position: relative;
+
   overflow-x: hidden;
+
   padding-bottom: 1.5rem;
+
 }
+
+
 
 /* Book shadow underneath — constrained to viewport so thumbnails always show */
+
 .book-container {
+
   position: relative;
+
   filter: drop-shadow(0 25px 20px rgba(0, 0, 0, 0.25));
+
   background-color: #454545;
+
   padding: 20px 14px 2px;
+
   width: 100%;
 
+
+
   overflow: hidden;
+
 }
+
+
 
 /* Cover Page - pdfName title display */
+
 .cover {
+
   display: flex !important;
+
   align-items: center !important;
+
   justify-content: center !important;
+
   overflow: hidden;
+
   padding: 0 !important;
+
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+
   aspect-ratio: 1 / 1.414;
+
   width: 100%;
+
 }
+
+
 
 .cover-title-wrap {
+
   display: flex;
+
   align-items: center;
+
   justify-content: center;
+
   width: 100%;
+
   height: 100%;
+
   padding: 2rem;
+
   text-align: center;
+
 }
+
+
 
 .cover-title {
+
   color: #ffffff;
+
   font-size: clamp(1rem, 3cqw, 2rem);
+
   font-weight: 700;
+
   font-family: Georgia, serif;
+
   line-height: 1.3;
+
   letter-spacing: 0.02em;
-  text-shadow: 0 2px 12px rgba(0,0,0,0.4);
+
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+
   word-break: break-word;
+
 }
+
+
 
 /* Book Core Styles - Realistic with page curl effect */
+
 .pdf-main-container .book {
+
   position: relative;
+
   display: flex;
+
   margin: 0 auto;
+
   width: 50%;
+
   transform-style: preserve-3d;
+
   transition: translate 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+
   translate: calc(min(var(--c), 1) * 50%) 0%;
+
 }
+
+
 
 .pdf-main-container .page {
+
   --thickness: 4;
+
   flex: none;
+
   display: flex;
+
   width: 100%;
+
   pointer-events: all;
+
   transform-style: preserve-3d;
+
   transform-origin: left center;
+
   transition:
+
     transform 0.8s ease,
+
     rotate 0.6s ease-in;
+
   translate: calc(var(--i) * -100%) 0px 0px;
-  transform: translateZ(
-    calc((var(--c) - var(--i) - 0.5) * calc(var(--thickness) * 0.2cqmin))
-  );
+
+  transform: translateZ(calc((var(--c) - var(--i) - 0.5) * calc(var(--thickness) * 0.2cqmin)));
+
   rotate: 0 1 0 calc(clamp(0, var(--c) - var(--i), 1) * -180deg);
+
 }
+
+
 
 /* Page styling - White with realistic edges */
+
 .pdf-main-container .front,
+
 .pdf-main-container .back {
+
   position: relative;
+
   flex: none;
+
   width: 100%;
-  aspect-ratio: 1 / 1.414; /* A4 portrait — gives the book its intrinsic height */
+
+  aspect-ratio: 1 / 1.414;
+  /* A4 portrait — gives the book its intrinsic height */
+
   backface-visibility: hidden;
+
   overflow: visible;
+
   background: #ffffff;
+
   border-radius: 3px;
+
   /* Subtle border for realism */
+
   border: 1px solid #e0e0e0;
+
   box-shadow:
+
     inset 0 0 0 1px rgba(255, 255, 255, 0.8),
+
     0 5px 15px rgba(0, 0, 0, 0.1);
+
 }
+
+
 
 /* Page curl effect on edges */
+
 .pdf-main-container .front::before,
+
 .pdf-main-container .back::before {
+
   content: "";
+
   position: absolute;
+
   top: 0;
+
   width: 15px;
+
   height: 100%;
+
   pointer-events: none;
+
   z-index: 2;
+
 }
+
+
 
 .pdf-main-container .front::before {
+
   right: 0;
+
   background: #cdcdcd;
+
 }
+
+
 
 .pdf-main-container .back::before {
+
   left: 0;
+
   background: #cdcdcd;
 
+
+
   /* background: linear-gradient(to right, rgba(0, 0, 0, 0.08), transparent); */
+
 }
+
+
 
 .pdf-main-container .front {
+
   border-radius: 4px 2px 2px 4px;
+
 }
+
+
 
 .pdf-main-container .back {
+
   translate: -100% 0;
+
   rotate: 0 1 0 180deg;
+
   border-radius: 2px 4px 4px 2px;
+
 }
+
+
 
 .pdf-main-container .front img,
+
 .pdf-main-container .back img {
+
   width: 100%;
+
   height: 100%;
+
   object-fit: cover;
+
   display: block;
+
   border-radius: 2px;
+
 }
+
+
 
 .pdf-main-container .front:has(img),
+
 .pdf-main-container .back:has(img) {
+
   padding: 0;
+
 }
+
+
 
 /* Empty/blank page - plain white */
+
 .empty-page {
+
   width: 100%;
+
   height: 100%;
+
   min-height: 500px;
+
   background: #f9f9f9;
+
 }
+
+
 
 /* Page numbers - subtle */
+
 .pdf-main-container .front::after,
+
 .pdf-main-container .back::after {
+
   position: absolute;
+
   bottom: 12px;
+
   font-size: 11px;
+
   color: #999;
+
   font-weight: 400;
+
   background: rgba(255, 255, 255, 0.9);
+
   padding: 2px 10px;
+
   border-radius: 20px;
+
   font-family: "Georgia", serif;
+
   z-index: 3;
+
 }
+
+
 
 .pdf-main-container .front::after {
+
   right: 15px;
+
   content: attr(data-page);
+
 }
+
+
 
 .pdf-main-container .back::after {
+
   left: 15px;
+
   content: attr(data-page);
+
 }
+
+
 
 /* Cover pages don't show numbers */
+
 .cover::after,
+
 .cover::before {
+
   display: none !important;
+
 }
 
+
+
 /* Navigation Buttons */
+
 .book-prev-next {
   position: absolute;
   top: 45%;
@@ -205,403 +400,954 @@
   cursor: pointer;
   z-index: 100;
   transition: all 0.2s ease;
+  width: 40px;
+  height: 40px;
 }
 
-.book-prev-next.prev {
-  left: 2%;
-}
-.book-prev-next.next {
-  right: 2%;
-}
-
-.book-prev-next div {
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-  background: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(8px);
-}
-
-.book-prev-next div:hover {
-  transform: scale(1.05);
-  box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.3);
-}
-
-/* Thumbnail Navigation */
-.thumbnail-nav {
-  margin-top: 1.25rem;
-  padding: 0.75rem 1rem;
-  background: rgba(255, 255, 255, 0.3);
-  width: 80%;
-  overflow-x: auto;
-  scrollbar-width: thin;
-  border-radius: 12px;
-  flex-shrink: 0;
-}
-
-.thumbnail-track {
-  display: flex;
-  gap: 0.6rem;
-  justify-content: center;
-  flex-wrap: nowrap;
-  min-width: min-content;
-  padding: 0.25rem 0.5rem;
-}
-
-.thumbnail-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.thumbnail-item:hover {
-  transform: translateY(-3px);
-}
-
-.thumbnail-item.active .thumbnail-img-wrapper {
-  border: 2px solid #3b82f6;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.45);
-}
-
-.thumbnail-img-wrapper {
-  width: 52px;
-  height: 68px;
-  border-radius: 5px;
-  overflow: hidden;
-  border: 1.5px solid rgba(0,0,0,0.15);
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-  transition: all 0.2s;
-}
-
-.thumbnail-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  background: #fff;
-}
-
-.cover-thumb {
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: bold;
-  font-size: 14px;
-}
-
-.thumbnail-label {
-  font-size: 9px;
-  font-weight: 500;
-  color: #444;
-  background: rgba(255, 255, 255, 0.85);
-  padding: 1px 6px;
-  border-radius: 20px;
-  font-family: monospace;
-  white-space: nowrap;
-}
-
-/* Hotspot Pins */
-.image-hotspots--pin {
-  transform: translate(-50%, -50%) !important;
-  transition: transform 0.2s ease;
-}
-
-.image-hotspots--pin:hover {
-  transform: translate(-50%, -50%) scale(1.15) !important;
-}
-
-.image-hotspots--pin-button.hotspot--pinned {
-  width: 38px;
-  height: 38px;
-  background: transparent;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.image-hotspots--pin-button.hotspot--pinned svg {
-  display: block;
-  transform-origin: center;
-  border: 2px solid white;
-  border-radius: 50%;
-  padding: 2px;
-  outline: 1px solid rgba(255, 255, 255, 0.6);
-  outline-offset: 2px;
-  transition: all 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-}
-
-.image-hotspots--pin-button.hotspot--pinned:after {
-  content: "";
-  display: block;
-  width: 44px;
-  height: 44px;
-  background: rgba(255, 255, 255, 0.25);
-  border-radius: 50%;
-  animation: hotspot-wave 2s ease infinite alternate;
-  position: absolute;
-  top: -3px;
-  left: -3px;
-  z-index: -1;
-}
-
-@keyframes hotspot-wave {
-  0% {
-    transform: scale(1);
-    opacity: 0.4;
-  }
-  100% {
-    transform: scale(1.6);
-    opacity: 0;
-  }
-}
-
-/* Popover Modal */
-.custom-popover {
-  position: fixed;
-  z-index: 9999;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(92vw, 460px);
-  background: #ffffff;
-  border-radius: 20px;
-  box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(0, 0, 0, 0.07);
-  pointer-events: auto;
-  animation: modalFadeIn 0.2s ease;
-  overflow: hidden;
-}
-
-@keyframes modalFadeIn {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -46%);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%);
-  }
-}
-
-/* Two-column layout: fixed image column + flex content column */
-.modal-content-wrapper {
-  display: flex;
-  gap: 0;
-  padding: 0;
-  align-items: stretch;
-  min-height: 220px;
-}
-
-/* Left: fixed-size image panel */
-.modal-content-item:first-child {
-  flex: 0 0 150px;
-  width: 150px;
-  background: #f4f5f7;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  border-right: 1px solid rgba(0,0,0,0.06);
-}
-
-/* Image always fills its container consistently */
-.modal-content-item:first-child img {
-  width: 100%;
-  height: 150px;
-  object-fit: contain;
-  border-radius: 10px;
-  display: block;
-}
-
-/* Right: content panel */
-.modal-content-item:last-child {
-  flex: 1;
-  padding: 1.25rem 1rem 1.25rem 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  overflow: hidden;
-}
-
-/* Product title */
-.modal-content-item:last-child h3 {
-  font-size: 0.95rem !important;
-  font-weight: 700 !important;
-  line-height: 1.3;
-  margin: 0 0 4px 0;
-  padding-right: 28px; /* space for close btn */
-}
-
-/* Description */
-.modal-content-item:last-child .desc {
-  font-size: 0.75rem !important;
-  line-height: 1.4;
-  opacity: 0.65;
-  margin: 0 0 6px 0;
-}
-
-/* Price */
-.modal-content-item:last-child p.font-bold {
-  font-size: 1rem !important;
-  font-weight: 700 !important;
-  margin: 0 0 10px 0;
-}
-
-/* Variant select — compact, auto width */
-.custom-popover select {
-  width: 100%;
-  max-width: 160px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  font-size: 0.8rem;
-  margin: 0 0 10px 0;
-  cursor: pointer;
-  appearance: auto;
-}
-
-.add-to-cart-btn {
-  width: 100%;
-  background: #111;
-  color: #fff;
-  border: none;
-  padding: 10px 14px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-  letter-spacing: 0.01em;
-}
-
-.add-to-cart-btn:hover {
-  opacity: 0.82;
-}
-
-/* View product button */
-.modal-content-item:last-child a.view-product-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  margin-top: 8px;
-  padding: 8px 14px;
-  border-radius: 8px;
-  border: 1.5px solid currentColor;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: inherit;
-  text-decoration: none;
-  opacity: 0.7;
-  transition: opacity 0.15s ease;
-  letter-spacing: 0.01em;
-}
-
-.modal-content-item:last-child a.view-product-btn:hover {
-  opacity: 1;
-  text-decoration: none;
-}
-
-/* Close button — inside right panel top-right */
-.custom-popover .cross-btn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: #f1f5f9;
-  border-radius: 50%;
+.book-prev-next svg {
   width: 28px;
   height: 28px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  transition: background 0.15s;
-  z-index: 10;
 }
 
-.custom-popover .cross-btn:hover {
-  background: #e2e8f0;
+
+.book-prev-next.prev {
+
+  left: 2%;
+
 }
+
+.book-prev-next.next {
+
+  right: 2%;
+
+}
+
+
+
+.book-prev-next div {
+
+  transition:
+
+    transform 0.2s ease,
+
+    box-shadow 0.2s ease;
+
+  background: rgba(255, 255, 255, 0.95) !important;
+
+  backdrop-filter: blur(8px);
+
+}
+
+
+
+.book-prev-next div:hover {
+
+  transform: scale(1.05);
+
+  box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.3);
+
+}
+
+
+
+/* Thumbnail Navigation */
+
+.thumbnail-nav {
+
+  margin-top: 1.25rem;
+
+  padding: 0.75rem 1rem;
+
+  background: rgba(255, 255, 255, 0.3);
+
+  width: 80%;
+
+  overflow-x: auto;
+
+  scrollbar-width: thin;
+
+  border-radius: 12px;
+
+  flex-shrink: 0;
+
+}
+
+
+
+.thumbnail-track {
+
+  display: flex;
+
+  gap: 0.6rem;
+
+  justify-content: center;
+
+  flex-wrap: nowrap;
+
+  min-width: min-content;
+
+  padding: 0.25rem 0.5rem;
+
+}
+
+
+
+.thumbnail-item {
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  gap: 0.3rem;
+
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+
+  flex-shrink: 0;
+
+}
+
+
+
+.thumbnail-item:hover {
+
+  transform: translateY(-3px);
+
+}
+
+
+
+.thumbnail-item.active .thumbnail-img-wrapper {
+
+  border: 2px solid #3b82f6;
+
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.45);
+
+}
+
+
+
+.thumbnail-img-wrapper {
+
+  width: 52px;
+
+  height: 68px;
+
+  border-radius: 5px;
+
+  overflow: hidden;
+
+  border: 1.5px solid rgba(0, 0, 0, 0.15);
+
+  background: #fff;
+
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+
+  transition: all 0.2s;
+
+}
+
+
+
+.thumbnail-img {
+
+  width: 100%;
+
+  height: 100%;
+
+  object-fit: contain;
+
+  background: #fff;
+
+}
+
+
+
+.cover-thumb {
+
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  color: white;
+
+  font-weight: bold;
+
+  font-size: 14px;
+
+}
+
+
+
+.thumbnail-label {
+
+  font-size: 9px;
+
+  font-weight: 500;
+
+  color: #444;
+
+  background: rgba(255, 255, 255, 0.85);
+
+  padding: 1px 6px;
+
+  border-radius: 20px;
+
+  font-family: monospace;
+
+  white-space: nowrap;
+
+}
+
+
+
+/* Hotspot Pins */
+
+.image-hotspots--pin {
+
+  transform: translate(-50%, -50%) !important;
+
+  transition: transform 0.2s ease;
+
+}
+
+
+
+.image-hotspots--pin:hover {
+
+  transform: translate(-50%, -50%) scale(1.15) !important;
+
+}
+
+
+
+.image-hotspots--pin-button.hotspot--pinned {
+
+  width: 38px;
+
+  height: 38px;
+
+  background: transparent;
+
+  border-radius: 50%;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  cursor: pointer;
+
+}
+
+
+
+.image-hotspots--pin-button.hotspot--pinned svg {
+
+  display: block;
+
+  transform-origin: center;
+
+  border: 2px solid white;
+
+  border-radius: 50%;
+
+  padding: 2px;
+
+  outline: 1px solid rgba(255, 255, 255, 0.6);
+
+  outline-offset: 2px;
+
+  transition: all 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+
+}
+
+
+
+.image-hotspots--pin-button.hotspot--pinned:after {
+
+  content: "";
+
+  display: block;
+
+  width: 44px;
+
+  height: 44px;
+
+  background: rgba(255, 255, 255, 0.25);
+
+  border-radius: 50%;
+
+  animation: hotspot-wave 2s ease infinite alternate;
+
+  position: absolute;
+
+  top: -3px;
+
+  left: -3px;
+
+  z-index: -1;
+
+}
+
+
+
+@keyframes hotspot-wave {
+
+  0% {
+
+    transform: scale(1);
+
+    opacity: 0.4;
+
+  }
+
+  100% {
+
+    transform: scale(1.6);
+
+    opacity: 0;
+
+  }
+
+}
+
+
+
+/* Popover Modal */
+
+.custom-popover {
+
+  position: fixed;
+
+  z-index: 9999;
+
+  top: 50%;
+
+  left: 50%;
+
+  transform: translate(-50%, -50%);
+
+  width: min(92vw, 460px);
+
+  background: #ffffff;
+
+  border-radius: 20px;
+
+  box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.35);
+
+  border: 1px solid rgba(0, 0, 0, 0.07);
+
+  pointer-events: auto;
+
+  animation: modalFadeIn 0.2s ease;
+
+  overflow: hidden;
+
+}
+
+
+
+@keyframes modalFadeIn {
+
+  from {
+
+    opacity: 0;
+
+    transform: translate(-50%, -46%);
+
+  }
+
+  to {
+
+    opacity: 1;
+
+    transform: translate(-50%, -50%);
+
+  }
+
+}
+
+
+
+/* Two-column layout: fixed image column + flex content column */
+
+.modal-content-wrapper {
+
+  display: flex;
+
+  gap: 0;
+
+  padding: 0;
+
+  align-items: stretch;
+
+  min-height: 220px;
+
+}
+
+
+
+/* Left: fixed-size image panel */
+
+.modal-content-item:first-child {
+
+  flex: 0 0 150px;
+
+  width: 150px;
+
+  background: #f4f5f7;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  padding: 1rem;
+
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+
+}
+
+
+
+/* Image always fills its container consistently */
+
+.modal-content-item:first-child img {
+
+  width: 100%;
+
+  height: 150px;
+
+  object-fit: contain;
+
+  border-radius: 10px;
+
+  display: block;
+
+}
+
+
+
+/* Right: content panel */
+
+.modal-content-item:last-child {
+
+  flex: 1;
+
+  padding: 1.25rem 1rem 1.25rem 1.25rem;
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 0;
+
+  overflow: hidden;
+
+}
+
+
+
+/* Product title */
+
+.modal-content-item:last-child h3 {
+
+  font-size: 0.95rem !important;
+
+  font-weight: 700 !important;
+
+  line-height: 1.3;
+
+  margin: 0 0 4px 0;
+
+  padding-right: 28px;
+  /* space for close btn */
+
+}
+
+
+
+/* Description */
+
+.modal-content-item:last-child .desc {
+
+  font-size: 0.75rem !important;
+
+  line-height: 1.4;
+
+  opacity: 0.65;
+
+  margin: 0 0 6px 0;
+
+}
+
+
+
+/* Price */
+
+.modal-content-item:last-child p.font-bold {
+
+  font-size: 1rem !important;
+
+  font-weight: 700 !important;
+
+  margin: 0 0 10px 0;
+
+}
+
+
+
+/* Variant select — compact, auto width */
+
+.custom-popover select {
+
+  width: 100%;
+
+  max-width: 160px;
+
+  padding: 6px 10px;
+
+  border-radius: 8px;
+
+  border: 1px solid #e2e8f0;
+
+  background: #f8fafc;
+
+  font-size: 0.8rem;
+
+  margin: 0 0 10px 0;
+
+  cursor: pointer;
+
+  appearance: auto;
+
+}
+
+
+
+.add-to-cart-btn {
+
+  width: 100%;
+
+  background: #111;
+
+  color: #fff;
+
+  border: none;
+
+  padding: 10px 14px;
+
+  border-radius: 8px;
+
+  font-weight: 600;
+
+  font-size: 0.85rem;
+
+  cursor: pointer;
+
+  transition: opacity 0.15s ease;
+
+  letter-spacing: 0.01em;
+
+}
+
+
+
+.add-to-cart-btn:hover {
+
+  opacity: 0.82;
+
+}
+
+
+
+/* View product button */
+
+.modal-content-item:last-child a.view-product-btn {
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 5px;
+
+  margin-top: 8px;
+
+  padding: 8px 14px;
+
+  border-radius: 8px;
+
+  border: 1.5px solid currentColor;
+
+  font-size: 0.8rem;
+
+  font-weight: 600;
+
+  color: inherit;
+
+  text-decoration: none;
+
+  opacity: 0.7;
+
+  transition: opacity 0.15s ease;
+
+  letter-spacing: 0.01em;
+
+}
+
+
+
+.modal-content-item:last-child a.view-product-btn:hover {
+
+  opacity: 1;
+
+  text-decoration: none;
+
+}
+
+
+
+/* Close button — inside right panel top-right */
+
+.custom-popover .cross-btn {
+
+  position: absolute;
+
+  top: 10px;
+
+  right: 10px;
+
+  background: #f1f5f9;
+
+  border-radius: 50%;
+
+  width: 28px;
+
+  height: 28px;
+
+  cursor: pointer;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  border: none;
+
+  transition: background 0.15s;
+
+  z-index: 10;
+
+}
+
+
+
+.custom-popover .cross-btn:hover {
+
+  background: #e2e8f0;
+
+}
+
+
+
 
 
 /* =============================================
+
    WIDE FORMAT MODE (non-A4: A3, A2, A1, etc.)
+
    One full image per spread, split 50/50 via background-image.
+
    .wide-front = left half,  .wide-back = right half.
+
    The .back panel has rotate: 0 1 0 180deg in the flipbook CSS,
+
    so its local coordinate space is mirrored on the X axis.
+
    background-position: right center on .wide-back renders the
+
    correct right half of the image after that flip.
+
    background-image is set as an inline style from Liquid.
+
    ============================================= */
 
+
+
 .pdf-main-container .wide-front,
+
 .pdf-main-container .wide-back {
+
   overflow: hidden;
+
   background-repeat: no-repeat;
+
   background-size: 200% 100%;
+
   aspect-ratio: 1 / 1.414;
+
   width: 100%;
+
   display: block;
-  position: relative; /* needed for absolute-positioned hotspot pins */
+
+  position: relative;
+  /* needed for absolute-positioned hotspot pins */
+
 }
+
+
 
 .pdf-main-container .wide-front {
+
   /* Shows RIGHT half of the image — unflipped, right side of open book */
+
   background-position: right center;
+
 }
+
+
 
 .pdf-main-container .wide-back {
+
   /* Shows LEFT half of the image — this element has rotate: 0 1 0 180deg so
+
      local coords are mirrored. background-position: left center in local space
+
      maps to the visual LEFT half after the flip. */
+
   background-position: left center;
+
 }
+
+
 
 /* Remove spine shadow line — image bridges the seam */
+
 .pdf-main-container .wide-front::before,
+
 .pdf-main-container .wide-back::before {
+
   display: none;
+
 }
+
+
 
 /* Hide page numbers for wide-format pages */
+
 .pdf-main-container .wide-front::after,
+
 .pdf-main-container .wide-back::after {
+
   display: none;
+
 }
+
+
 
 /* Responsive */
+
 @media (max-width: 1024px) {
+
   .pdf-main-container .book {
+
     width: 70%;
+
   }
+
 }
 
+
+
 @media (max-width: 768px) {
+
   .pdf-main-container .book {
+
     width: 88%;
+
   }
+
   .book-prev-next.prev {
+
     left: 0;
+
   }
+
   .book-prev-next.next {
+
     right: 0;
+
   }
+
   .modal-content-wrapper {
+
     flex-direction: column;
+
   }
+
   .thumbnail-img-wrapper {
+
     width: 40px;
+
     height: 52px;
+
+  }
+
+}
+
+
+/* MY CODE */
+
+.mobile-book-viewer {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  position: relative;
+}
+
+.mobile-book-stage {
+  position: relative;
+  width: min(92vw, 420px);
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+.mobile-book-track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.mobile-book-page {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(100%);
+  transition:
+    transform 0.45s ease,
+    opacity 0.45s ease,
+    visibility 0.45s ease;
+  z-index: 1;
+  background: #fff;
+}
+
+.mobile-book-page img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.mobile-book-page.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+  z-index: 3;
+}
+
+.mobile-book-page.enter-from-right {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(100%);
+  z-index: 4;
+}
+
+.mobile-book-page.enter-from-left {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-100%);
+  z-index: 4;
+}
+
+.mobile-book-page.slide-in {
+  transform: translateX(0);
+}
+
+.mobile-book-page.exit-to-left {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-100%);
+  z-index: 2;
+}
+
+.mobile-book-page.exit-to-right {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(100%);
+  z-index: 2;
+}
+
+.mobile-book-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 35px;
+  height: 35px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  border: none;
+  cursor: pointer;
+  /* padding: 0 14px; */
+}
+
+.mobile-book-nav svg {
+  width: 24px;
+  height: 24px;
+}
+
+.mobile-book-nav.prev {
+  position: absolute;
+  left: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+
+.mobile-book-nav.next {
+  position: absolute;
+  right: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+}
+
+.mobile-book-nav[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.mobile-points {
+  transform: translate(-50%, -50%);
+}
+
+@media (max-width: 767px) {
+
+  .book-container,
+  .thumbnail-nav {
+    display: none !important;
+  }
+
+  .mobile-book-viewer {
+    display: flex;
   }
 }
