@@ -328,7 +328,7 @@ if (
                 <img
                   src={images[currentPage].url}
                   alt={`Page ${currentPage + 1}`}
-                  style={{ display: "block", width: "100%", height: "auto", cursor: "crosshair", borderRadius: 8 }}
+                  style={{ display: "block", width: "100%", maxHeight: "800px", cursor: "crosshair", borderRadius: 8 , objectFit:"contain"}}
                   onClick={(event) =>
                     handleImageMarker(event, leftImageRef, currentPage)
                   }
@@ -484,7 +484,7 @@ if (
               </span>
               {/* DEBUG — remove once confirmed working */}
               <span style={{ fontSize: 11, background: isSinglePageMode ? "#FEF9C3" : "#DCFCE7", color: isSinglePageMode ? "#92400E" : "#166534", border: `1px solid ${isSinglePageMode ? "#FDE68A" : "#BBF7D0"}`, borderRadius: 4, padding: "2px 7px", fontFamily: "monospace" }}>
-                format: {pageFormat ?? "undefined"} · mode: {isSinglePageMode ? "single" : "double"}
+                Format: {pageFormat ?? "-"} · Mode: {isSinglePageMode ? "Single" : "Double"}
               </span>
               <button onClick={handleNextPage} disabled={isSinglePageMode ? currentPage >= images.length - 1 : currentPage + 2 >= images.length} style={{ background: (isSinglePageMode ? currentPage >= images.length - 1 : currentPage + 2 >= images.length) ? "#F1F5F9" : "#fff", border: "1px solid #E2E8F0", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 500, color: (isSinglePageMode ? currentPage >= images.length - 1 : currentPage + 2 >= images.length) ? "#94A3B8" : "#374151", cursor: (isSinglePageMode ? currentPage >= images.length - 1 : currentPage + 2 >= images.length) ? "default" : "pointer" }}>Next →</button>
             </div>

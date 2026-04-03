@@ -802,10 +802,7 @@ const DetailPage = () => {
         {/* ── BOTTOM BAR ── */}
         <div style={{ marginTop: 16, padding: "14px 20px", background: "#ffffff", borderRadius: 12, border: "1px solid #E8EDF2", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <kbd style={{ background: "#F1F5F9", border: "1px solid #E2E8F0", borderRadius: 5, padding: "2px 7px", fontFamily: "monospace", fontSize: 11, color: "#374151", boxShadow: "0 1px 0 #D1D5DB" }}>Esc</kbd>
-              <span style={{ fontSize: 12, color: "#64748B" }}>Deselect hotspot</span>
-            </div>
+          
             <div style={{ width: 1, height: 16, background: "#E2E8F0" }} />
             <span style={{ fontSize: 12, color: "#64748B" }}>Click on any page to add a hotspot pin</span>
           </div>

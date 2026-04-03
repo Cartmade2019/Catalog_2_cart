@@ -7,7 +7,7 @@
 
 import { json, type ActionFunctionArgs } from "@remix-run/node";
 import { useNavigate, useFetcher } from "@remix-run/react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { authenticate } from "../shopify.server";
 import { notifySupabaseEvent } from "app/utils/supabase-email-server";
 import { getShopData } from "app/utils/shopify-shop-data.server";
@@ -321,27 +321,63 @@ const Installation = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [showSupportForm, setShowSupportForm] = useState(false);
   const [supportSubject, setSupportSubject] = useState("");
+  const [supportMessage, setSupportMessage] = useState("");
   const [supportPriority, setSupportPriority] = useState("normal");
   const [supportAttachment, setSupportAttachment] = useState("");
+  const [formErrors, setFormErrors] = useState<{ subject?: string; message?: string }>({});
 
-  const supportFetcher = useFetcher< {success: boolean;error?:string}>();
-const [supportMessage, setSupportMessage] = useState("");
-const isSubmitting = supportFetcher.state === "submitting";
-const submitResult = supportFetcher.data; 
+  const SUBJECT_MAX = 60;
+  const MESSAGE_MIN = 20;
+  const MESSAGE_MAX = 1000;
 
-const handleSupportSubmit = () => {
-  if (!supportSubject.trim()) return;
+  const supportFetcher = useFetcher<{ success: boolean; error?: string }>();
+  const isSubmitting = supportFetcher.state === "submitting";
+  const submitResult = supportFetcher.data;
 
-   const formData = new FormData();
+  // After successful submission: clear fields and auto-dismiss the banner
+  const prevStateRef = useRef<string>("idle");
+  useEffect(() => {
+    if (prevStateRef.current === "submitting" && supportFetcher.state === "idle" && supportFetcher.data?.success) {
+      setSupportSubject("");
+      setSupportMessage("");
+      setSupportPriority("normal");
+      setSupportAttachment("");
+      setFormErrors({});
+      const timer = setTimeout(() => {
+        setShowSupportForm(false);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+    prevStateRef.current = supportFetcher.state;
+  }, [supportFetcher.state, supportFetcher.data]);
 
+  const handleSupportSubmit = () => {
+    const errors: { subject?: string; message?: string } = {};
+
+    if (!supportSubject.trim()) {
+      errors.subject = "Subject is required.";
+    } else if (supportSubject.trim().length > SUBJECT_MAX) {
+      errors.subject = `Subject must be ${SUBJECT_MAX} characters or fewer.`;
+    }
+
+    if (!supportMessage.trim()) {
+      errors.message = "Message is required.";
+    } else if (supportMessage.trim().length < MESSAGE_MIN) {
+      errors.message = `Message must be at least ${MESSAGE_MIN} characters.`;
+    } else if (supportMessage.trim().length > MESSAGE_MAX) {
+      errors.message = `Message must be ${MESSAGE_MAX} characters or fewer.`;
+    }
+
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    const formData = new FormData();
     formData.append("subject", supportSubject);
     formData.append("message", supportMessage);
     formData.append("priority", supportPriority);
     formData.append("attachment_url", supportAttachment);
-
-
     supportFetcher.submit(formData, { method: "post" });
-};
+  };
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#F8FAFC", fontFamily: "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
@@ -492,42 +528,71 @@ const handleSupportSubmit = () => {
             <div style={{ marginTop: 22, paddingTop: 22, borderTop: "1px solid #E8EDF2", display: "flex", flexDirection: "column", gap: 16, animation: "slideDown 0.18s ease both" }}>
               {/* Subject */}
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
-                  Subject <span style={{ color: "#EF4444" }}>*</span>
-                </label>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
+                    Subject <span style={{ color: "#EF4444" }}>*</span>
+                  </label>
+                  <span style={{ fontSize: 12, color: supportSubject.length > SUBJECT_MAX ? "#EF4444" : "#94A3B8" }}>
+                    {supportSubject.length}/{SUBJECT_MAX}
+                  </span>
+                </div>
                 <input
                   type="text"
                   placeholder="e.g. Hotspot pins not saving"
                   value={supportSubject}
-                  onChange={(e) => setSupportSubject(e.target.value)}
-                  style={{ fontSize: 14, color: "#0F172A", background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, padding: "10px 14px", outline: "none", transition: "border-color 0.15s" }}
-                  onFocus={(e) => (e.target.style.borderColor = "#1A73E8")}
-                  onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
+                  onChange={(e) => {
+                    setSupportSubject(e.target.value);
+                    if (formErrors.subject) setFormErrors((prev) => ({ ...prev, subject: undefined }));
+                  }}
+                  style={{
+                    fontSize: 14, color: "#0F172A", background: "#F8FAFC",
+                    border: `1px solid ${formErrors.subject ? "#EF4444" : "#E2E8F0"}`,
+                    borderRadius: 8, padding: "10px 14px", outline: "none", transition: "border-color 0.15s",
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = formErrors.subject ? "#EF4444" : "#1A73E8")}
+                  onBlur={(e) => (e.target.style.borderColor = formErrors.subject ? "#EF4444" : "#E2E8F0")}
                 />
+                {formErrors.subject && (
+                  <span style={{ fontSize: 12, color: "#EF4444" }}>{formErrors.subject}</span>
+                )}
               </div>
 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-  <label style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
-    Message <span style={{ color: "#EF4444" }}>*</span>
-  </label>
+  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <label style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
+      Message <span style={{ color: "#EF4444" }}>*</span>
+    </label>
+    <span style={{ fontSize: 12, color: supportMessage.length > MESSAGE_MAX ? "#EF4444" : supportMessage.length < MESSAGE_MIN && supportMessage.length > 0 ? "#F59E0B" : "#94A3B8" }}>
+      {supportMessage.length}/{MESSAGE_MAX}
+      {supportMessage.length > 0 && supportMessage.length < MESSAGE_MIN && (
+        <span style={{ marginLeft: 4, color: "#F59E0B" }}>(min {MESSAGE_MIN})</span>
+      )}
+    </span>
+  </div>
   <textarea
     placeholder="Describe the issue you're facing..."
     value={supportMessage}
-    onChange={(e) => setSupportMessage(e.target.value)}
+    onChange={(e) => {
+      setSupportMessage(e.target.value);
+      if (formErrors.message) setFormErrors((prev) => ({ ...prev, message: undefined }));
+    }}
     rows={5}
     style={{
       fontSize: 14,
       color: "#0F172A",
       background: "#F8FAFC",
-      border: "1px solid #E2E8F0",
+      border: `1px solid ${formErrors.message ? "#EF4444" : "#E2E8F0"}`,
       borderRadius: 8,
       padding: "10px 14px",
       outline: "none",
       resize: "vertical",
       transition: "border-color 0.15s",
     }}
-    onFocus={(e) => (e.target.style.borderColor = "#1A73E8")}
-    onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
+    onFocus={(e) => (e.target.style.borderColor = formErrors.message ? "#EF4444" : "#1A73E8")}
+    onBlur={(e) => (e.target.style.borderColor = formErrors.message ? "#EF4444" : "#E2E8F0")}
   />
+  {formErrors.message && (
+    <span style={{ fontSize: 12, color: "#EF4444" }}>{formErrors.message}</span>
+  )}
 </div>
               {/* Priority */}
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
