@@ -61,6 +61,10 @@ const [buttonTextError, setButtonTextError] = useState("");
      setButtonTextError("Button text is required");
      return;
    }
+   if(buttonText.length > 16){
+     setButtonTextError("Button text must be less than 16 characters");
+     return;
+   }
 
     const formData = new FormData();
     formData.append("source", "ButtonDesign");
