@@ -326,240 +326,255 @@ function UploadModal({
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, backdropFilter: "blur(6px)" }}>
-      <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 480, boxShadow: "0 24px 64px rgba(15,23,42,0.18)", overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 20px", backdropFilter: "blur(6px)" }}>
+      <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 460, maxHeight: "calc(100vh - 32px)", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(15,23,42,0.18)", overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
 
-        {/* Header */}
-        <div style={{ padding: "20px 22px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {phase === "preview" && (modalStep === "page" || modalStep === "cover") && (
-              <button onClick={() => setModalStep(modalStep === "cover" ? "page" : "name")} style={{ width: 28, height: 28, borderRadius: 7, background: "#F1F5F9", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              </button>
-            )}
-            <span style={{ fontSize: 15, fontWeight: 600, color: "#0F172A" }}>{title}</span>
-          </div>
-          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, background: "#F1F5F9", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-   <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
- </button>
-        </div>
-
-        {/* Step indicator */}
-        {phase === "preview" && (
-          <div style={{ display: "flex", gap: 6, padding: "12px 22px 0" }}>
-            {["Name catalog", "Choose page", "Cover image"].map((s, i) => {
-              const isActive = (i === 0 && modalStep === "name") || (i === 1 && modalStep === "page") || (i === 2 && modalStep === "cover");
-              const isDone = (i === 0 && (modalStep === "page" || modalStep === "cover")) || (i === 1 && modalStep === "cover");
-              return (
-                <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                    <div style={{ width: 18, height: 18, borderRadius: "50%", background: isDone ? "#22C55E" : isActive ? "#1A73E8" : "#E2E8F0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      {isDone
-                        ? <svg width="9" height="9" fill="none" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                        : <span style={{ fontSize: 9, fontWeight: 700, color: isActive ? "#fff" : "#94A3B8" }}>{i + 1}</span>
-                      }
-                    </div>
-                    <span style={{ fontSize: 11, color: isActive ? "#0F172A" : isDone ? "#22C55E" : "#94A3B8", fontWeight: isActive ? 500 : 400 }}>{s}</span>
-                  </div>
-                  {i < 2 && <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round" /></svg>}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ── STEP 1: Name + file info ── */}
-        {phase === "preview" && modalStep === "name" && (
-          <div style={{ padding: "18px 22px 22px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#F8FAFC", border: "1px solid #E8EDF2", borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 9, background: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="#EF4444" strokeWidth="1.5" strokeLinejoin="round" /><path d="M14 2v6h6" stroke="#EF4444" strokeWidth="1.5" strokeLinejoin="round" /></svg>
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <p style={{ fontSize: 13, fontWeight: 500, color: "#0F172A", margin: "0 0 2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</p>
-                <p style={{ fontSize: 11, color: "#94A3B8", margin: 0 }}>{(file.size / 1024).toFixed(1)} KB</p>
-              </div>
-              <button onClick={onChangeFile} style={{ marginLeft: "auto", fontSize: 11, color: "#1A73E8", background: "none", border: "none", cursor: "pointer", fontWeight: 500, whiteSpace: "nowrap" }}>Change</button>
+        {/* Header — fixed, never scrolls away */}
+        <div style={{ padding: "16px 18px 0", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {phase === "preview" && (modalStep === "page" || modalStep === "cover") && (
+                <button onClick={() => setModalStep(modalStep === "cover" ? "page" : "name")} style={{ width: 26, height: 26, borderRadius: 7, background: "#F1F5F9", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </button>
+              )}
+              <span style={{ fontSize: 14, fontWeight: 600, color: "#0F172A" }}>{title}</span>
             </div>
-            <label style={{ fontSize: 12, fontWeight: 500, color: "#374151", display: "block", marginBottom: 6 }}>Catalog name</label>
-            <input
-              value={catalogName}
-              onChange={(e) => setCatalogName(e.target.value)}
-              placeholder="e.g. Summer 2025 Lookbook"
-              style={{ width: "100%", border: "1px solid #E2E8F0", borderRadius: 8, padding: "9px 13px", fontSize: 13, color: "#0F172A", outline: "none", fontFamily: "inherit", background: "#fff", transition: "border-color 0.15s", boxSizing: "border-box" }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = "#1A73E8")}
-              onBlur={(e) => (e.currentTarget.style.borderColor = "#E2E8F0")}
-            />
-            <button
-              onClick={() => setModalStep("page")}
-              disabled={!catalogName.trim()}
-              style={{ width: "100%", marginTop: 16, background: catalogName.trim() ? "#1A73E8" : "#E2E8F0", color: catalogName.trim() ? "#fff" : "#94A3B8", border: "none", borderRadius: 9, padding: "11px", fontSize: 13, fontWeight: 600, cursor: catalogName.trim() ? "pointer" : "not-allowed", transition: "background 0.15s" }}
-            >
-              Continue →
+            <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, background: "#F1F5F9", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
           </div>
-        )}
 
-        {/* ── STEP 2: Choose target page ── */}
-        {phase === "preview" && modalStep === "page" && (
-          <div style={{ padding: "18px 22px 22px" }}>
-            <p style={{ fontSize: 13, color: "#64748B", margin: "0 0 14px", lineHeight: 1.6 }}>
-              Which page of your store should show this catalog? We'll use this to send you directly to the right place in the Theme Editor.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-              {PAGE_TARGETS.map((t) => {
-                const isSelected = targetPage === t.value;
+          {/* Step indicator */}
+          {phase === "preview" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "10px 0 0" }}>
+              {["Name", "Page", "Cover"].map((s, i) => {
+                const isActive = (i === 0 && modalStep === "name") || (i === 1 && modalStep === "page") || (i === 2 && modalStep === "cover");
+                const isDone = (i === 0 && (modalStep === "page" || modalStep === "cover")) || (i === 1 && modalStep === "cover");
                 return (
-                  <button
-                    key={t.value}
-                    onClick={() => setTargetPage(t.value)}
-                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "11px 14px", background: isSelected ? "#EFF6FF" : "#F8FAFC", border: `1.5px solid ${isSelected ? "#1A73E8" : "#E8EDF2"}`, borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}
-                  >
-                    <span style={{ fontSize: 18, lineHeight: 1 }}>{t.icon}</span>
-                    <span style={{ fontSize: 13, fontWeight: isSelected ? 600 : 400, color: isSelected ? "#1A73E8" : "#374151" }}>{t.label}</span>
-                    {isSelected && (
-                      <div style={{ marginLeft: "auto", width: 18, height: 18, borderRadius: "50%", background: "#1A73E8", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <svg width="9" height="9" fill="none" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  <div key={s} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <div style={{ width: 16, height: 16, borderRadius: "50%", background: isDone ? "#22C55E" : isActive ? "#1A73E8" : "#E2E8F0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        {isDone
+                          ? <svg width="8" height="8" fill="none" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                          : <span style={{ fontSize: 8, fontWeight: 700, color: isActive ? "#fff" : "#94A3B8" }}>{i + 1}</span>
+                        }
                       </div>
-                    )}
-                  </button>
+                      <span style={{ fontSize: 10, color: isActive ? "#0F172A" : isDone ? "#22C55E" : "#94A3B8", fontWeight: isActive ? 600 : 400 }}>{s}</span>
+                    </div>
+                    {i < 2 && <div style={{ width: 20, height: 1, background: "#E2E8F0", margin: "0 2px" }} />}
+                  </div>
                 );
               })}
             </div>
+          )}
+          <div style={{ height: 1, background: "#F1F5F9", margin: "12px -18px 0" }} />
+        </div>
 
-            {/* Custom page handle input */}
-            {targetPage === "page" && (
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 12, fontWeight: 500, color: "#374151", display: "block", marginBottom: 6 }}>
-                  Page handle <span style={{ color: "#94A3B8", fontWeight: 400 }}>(optional — e.g. "catalog" for /pages/catalog)</span>
-                </label>
-                <div style={{ display: "flex", alignItems: "center", border: "1px solid #E2E8F0", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
-                  <span style={{ padding: "9px 10px 9px 13px", fontSize: 13, color: "#94A3B8", background: "#F8FAFC", borderRight: "1px solid #E2E8F0", whiteSpace: "nowrap" }}>/pages/</span>
-                  <input
-                    value={customPageHandle}
-                    onChange={(e) => setCustomPageHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                    placeholder="your-page-handle"
-                    style={{ flex: 1, border: "none", outline: "none", padding: "9px 13px", fontSize: 13, color: "#0F172A", fontFamily: "inherit" }}
-                  />
+        {/* Scrollable body */}
+        <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
+
+          {/* ── STEP 1: Name + file info ── */}
+          {phase === "preview" && modalStep === "name" && (
+            <div style={{ padding: "14px 18px 18px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#F8FAFC", border: "1px solid #E8EDF2", borderRadius: 9, padding: "10px 12px", marginBottom: 14 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="17" height="17" fill="none" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="#EF4444" strokeWidth="1.5" strokeLinejoin="round" /><path d="M14 2v6h6" stroke="#EF4444" strokeWidth="1.5" strokeLinejoin="round" /></svg>
                 </div>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontSize: 12, fontWeight: 500, color: "#0F172A", margin: "0 0 1px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</p>
+                  <p style={{ fontSize: 11, color: "#94A3B8", margin: 0 }}>{(file.size / 1024).toFixed(1)} KB</p>
+                </div>
+                <button onClick={onChangeFile} style={{ marginLeft: "auto", fontSize: 11, color: "#1A73E8", background: "none", border: "none", cursor: "pointer", fontWeight: 500, whiteSpace: "nowrap" }}>Change</button>
               </div>
-            )}
-
-            <div style={{ display: "flex", gap: 10 }}>
+              <label style={{ fontSize: 11, fontWeight: 500, color: "#374151", display: "block", marginBottom: 5 }}>Catalog name</label>
+              <input
+                value={catalogName}
+                onChange={(e) => setCatalogName(e.target.value)}
+                placeholder="e.g. Summer 2025 Lookbook"
+                style={{ width: "100%", border: "1px solid #E2E8F0", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#0F172A", outline: "none", fontFamily: "inherit", background: "#fff", transition: "border-color 0.15s", boxSizing: "border-box" }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "#1A73E8")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "#E2E8F0")}
+              />
               <button
-                onClick={() => { setTargetPage("none"); setModalStep("cover"); }}
-                style={{ flex: 1, background: "#F1F5F9", color: "#374151", border: "none", borderRadius: 9, padding: "11px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
-              >
-                Skip for now
-              </button>
-              <button
-                onClick={() => setModalStep("cover")}
-                disabled={!targetPage}
-                style={{ flex: 2, background: targetPage ? "#1A73E8" : "#E2E8F0", color: targetPage ? "#fff" : "#94A3B8", border: "none", borderRadius: 9, padding: "11px", fontSize: 13, fontWeight: 600, cursor: targetPage ? "pointer" : "not-allowed", transition: "background 0.15s" }}
+                onClick={() => setModalStep("page")}
+                disabled={!catalogName.trim()}
+                style={{ width: "100%", marginTop: 14, background: catalogName.trim() ? "#1A73E8" : "#E2E8F0", color: catalogName.trim() ? "#fff" : "#94A3B8", border: "none", borderRadius: 9, padding: "10px", fontSize: 13, fontWeight: 600, cursor: catalogName.trim() ? "pointer" : "not-allowed", transition: "background 0.15s" }}
               >
                 Continue →
               </button>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ── STEP 3: Cover Image ── */}
-        {phase === "preview" && modalStep === "cover" && (
-          <div style={{ padding: "18px 22px 22px" }}>
-            <p style={{ fontSize: 13, color: "#64748B", margin: "0 0 14px", lineHeight: 1.6 }}>
-              Upload a cover image for your catalog (A4 portrait recommended). This will be shown as the catalog thumbnail.
-            </p>
+          {/* ── STEP 2: Choose target page ── */}
+          {phase === "preview" && modalStep === "page" && (
+            <div style={{ padding: "14px 18px 18px" }}>
+              <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 10px", lineHeight: 1.5 }}>
+                Which page should show this catalog? Used for the Theme Editor deep-link.
+              </p>
+              {/* 2-column grid for page targets */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 10 }}>
+                {PAGE_TARGETS.map((t) => {
+                  const isSelected = targetPage === t.value;
+                  return (
+                    <button
+                      key={t.value}
+                      onClick={() => setTargetPage(t.value)}
+                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: isSelected ? "#EFF6FF" : "#F8FAFC", border: `1.5px solid ${isSelected ? "#1A73E8" : "#E8EDF2"}`, borderRadius: 8, cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}
+                    >
+                      <span style={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>{t.icon}</span>
+                      <span style={{ fontSize: 12, fontWeight: isSelected ? 600 : 400, color: isSelected ? "#1A73E8" : "#374151", lineHeight: 1.3 }}>{t.label}</span>
+                      {isSelected && (
+                        <div style={{ marginLeft: "auto", width: 14, height: 14, borderRadius: "50%", background: "#1A73E8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <svg width="7" height="7" fill="none" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
 
-            {/* A4 drop zone */}
-            <div
-              onClick={() => coverImageRef.current?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleCoverImageSelect(f); }}
-              style={{ position: "relative", width: "100%", paddingTop: "141.4%", /* A4 ratio */ borderRadius: 10, border: `1.5px dashed ${coverImage ? "#1A73E8" : "#D1D5DB"}`, background: coverImage ? "#F0F6FF" : "#FAFAFA", cursor: "pointer", overflow: "hidden", marginBottom: 14, transition: "all 0.18s" }}
-            >
-              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+              {/* Custom page handle input */}
+              {targetPage === "page" && (
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ fontSize: 11, fontWeight: 500, color: "#374151", display: "block", marginBottom: 4 }}>
+                    Page handle <span style={{ color: "#94A3B8", fontWeight: 400 }}>(optional)</span>
+                  </label>
+                  <div style={{ display: "flex", alignItems: "center", border: "1px solid #E2E8F0", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
+                    <span style={{ padding: "8px 8px 8px 11px", fontSize: 12, color: "#94A3B8", background: "#F8FAFC", borderRight: "1px solid #E2E8F0", whiteSpace: "nowrap" }}>/pages/</span>
+                    <input
+                      value={customPageHandle}
+                      onChange={(e) => setCustomPageHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                      placeholder="your-page-handle"
+                      style={{ flex: 1, border: "none", outline: "none", padding: "8px 11px", fontSize: 12, color: "#0F172A", fontFamily: "inherit" }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => { setTargetPage("none"); setModalStep("cover"); }}
+                  style={{ flex: 1, background: "#F1F5F9", color: "#374151", border: "none", borderRadius: 9, padding: "10px", fontSize: 12, fontWeight: 500, cursor: "pointer" }}
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={() => setModalStep("cover")}
+                  disabled={!targetPage}
+                  style={{ flex: 2, background: targetPage ? "#1A73E8" : "#E2E8F0", color: targetPage ? "#fff" : "#94A3B8", border: "none", borderRadius: 9, padding: "10px", fontSize: 12, fontWeight: 600, cursor: targetPage ? "pointer" : "not-allowed", transition: "background 0.15s" }}
+                >
+                  Continue →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 3: Cover Image ── */}
+          {phase === "preview" && modalStep === "cover" && (
+            <div style={{ padding: "14px 18px 18px" }}>
+              <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 10px", lineHeight: 1.5 }}>
+                Optional cover thumbnail for your catalog. A4 portrait recommended.
+              </p>
+
+              {/* Compact horizontal drop zone */}
+              <div
+                onClick={() => coverImageRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleCoverImageSelect(f); }}
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 10, border: `1.5px dashed ${coverImage ? "#1A73E8" : "#D1D5DB"}`, background: coverImage ? "#F0F6FF" : "#FAFAFA", cursor: "pointer", marginBottom: 10, transition: "all 0.18s", position: "relative" }}
+              >
                 {coverImagePreview ? (
-                  <img src={coverImagePreview} alt="Cover preview" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: 8 }} />
+                  <>
+                    <div style={{ width: 52, height: 68, borderRadius: 6, overflow: "hidden", flexShrink: 0, border: "1px solid #E2E8F0" }}>
+                      <img src={coverImagePreview} alt="Cover preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: 12, fontWeight: 500, color: "#1A73E8", margin: "0 0 2px" }}>Cover selected</p>
+                      <p style={{ fontSize: 11, color: "#94A3B8", margin: "0 0 6px" }}>Click to change image</p>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setCoverImage(null); setCoverImagePreview(null); }}
+                        style={{ fontSize: 11, color: "#EF4444", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </>
                 ) : (
                   <>
-                    <div style={{ width: 42, height: 42, borderRadius: 10, background: "#fff", border: "1px solid #E2E8F0", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-                      <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#1A73E8" strokeWidth="1.75" /><circle cx="8.5" cy="8.5" r="1.5" stroke="#1A73E8" strokeWidth="1.5" /><path d="M21 15l-5-5L5 21" stroke="#1A73E8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    <div style={{ width: 38, height: 38, borderRadius: 9, background: "#fff", border: "1px solid #E2E8F0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#1A73E8" strokeWidth="1.75" /><circle cx="8.5" cy="8.5" r="1.5" stroke="#1A73E8" strokeWidth="1.5" /><path d="M21 15l-5-5L5 21" stroke="#1A73E8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </div>
-                    <p style={{ fontSize: 12, fontWeight: 500, color: "#374151", margin: 0, textAlign: "center" }}>Drop cover image here</p>
-                    <p style={{ fontSize: 11, color: "#94A3B8", margin: 0, textAlign: "center" }}>A4 portrait · JPG, PNG, WebP</p>
+                    <div>
+                      <p style={{ fontSize: 12, fontWeight: 500, color: "#374151", margin: "0 0 2px" }}>Drop cover image here</p>
+                      <p style={{ fontSize: 11, color: "#94A3B8", margin: 0 }}>JPG, PNG, WebP · A4 portrait</p>
+                    </div>
                   </>
                 )}
               </div>
-              {coverImagePreview && (
+              <input ref={coverImageRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverImageSelect(f); e.target.value = ""; }} />
+
+              <div style={{ display: "flex", gap: 8 }}>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setCoverImage(null); setCoverImagePreview(null); }}
-                  style={{ position: "absolute", top: 8, right: 8, width: 24, height: 24, borderRadius: "50%", background: "rgba(15,23,42,0.6)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2 }}
+                  onClick={() => handleConfirmUpload(true)}
+                  style={{ flex: 1, background: "#F1F5F9", color: "#374151", border: "none", borderRadius: 9, padding: "10px", fontSize: 12, fontWeight: 500, cursor: "pointer" }}
                 >
-                  <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="white" strokeWidth="2.5" strokeLinecap="round" /></svg>
+                  Skip
                 </button>
-              )}
+                <button
+                  onClick={() => handleConfirmUpload(false)}
+                  style={{ flex: 2, background: "#1A73E8", color: "#fff", border: "none", borderRadius: 9, padding: "10px", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "background 0.15s" }}
+                >
+                  {coverImage ? "Upload catalog →" : "Upload without cover →"}
+                </button>
+              </div>
             </div>
-            <input ref={coverImageRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverImageSelect(f); e.target.value = ""; }} />
+          )}
 
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={() => handleConfirmUpload(true)}
-                style={{ flex: 1, background: "#F1F5F9", color: "#374151", border: "none", borderRadius: 9, padding: "11px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
-              >
-                Skip
-              </button>
-              <button
-                onClick={() => handleConfirmUpload(false)}
-                style={{ flex: 2, background: "#1A73E8", color: "#fff", border: "none", borderRadius: 9, padding: "11px", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "background 0.15s" }}
-              >
-                {coverImage ? "Upload catalog →" : "Upload without cover →"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── PROGRESS ── */}
-        {phase === "progress" && (
-          <div>
-            <div style={{ margin: "18px 22px 0", height: 3, background: "#E8EDF2", borderRadius: 99, overflow: "hidden" }}>
-              <div style={{ height: "100%", background: "#F59E0B", borderRadius: 99, width: `${Math.min(((step + 1) / UPLOAD_STEPS.length) * 100, 95)}%`, transition: "width 0.7s ease" }} />
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "18px 22px 12px" }}>
-              {UPLOAD_STEPS.map((label, idx) => {
-                const isDone = idx < step;
-                const isActive = idx === step;
-                return (
-                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 10, opacity: idx > step ? 0.4 : 1, transition: "opacity 0.3s" }}>
-                    <div style={{ width: 20, height: 20, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: isDone ? "#22C55E" : isActive ? "#F59E0B" : "#EFF6FF", transition: "background 0.3s" }}>
-                      {isDone ? (
-                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                      ) : (
-                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: isActive ? "white" : "#1A73E8" }} />
-                      )}
+          {/* ── PROGRESS ── */}
+          {phase === "progress" && (
+            <div>
+              <div style={{ margin: "14px 18px 0", height: 3, background: "#E8EDF2", borderRadius: 99, overflow: "hidden" }}>
+                <div style={{ height: "100%", background: "#F59E0B", borderRadius: 99, width: `${Math.min(((step + 1) / UPLOAD_STEPS.length) * 100, 95)}%`, transition: "width 0.7s ease" }} />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "14px 18px 10px" }}>
+                {UPLOAD_STEPS.map((label, idx) => {
+                  const isDone = idx < step;
+                  const isActive = idx === step;
+                  return (
+                    <div key={label} style={{ display: "flex", alignItems: "center", gap: 10, opacity: idx > step ? 0.4 : 1, transition: "opacity 0.3s" }}>
+                      <div style={{ width: 20, height: 20, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: isDone ? "#22C55E" : isActive ? "#F59E0B" : "#EFF6FF", transition: "background 0.3s" }}>
+                        {isDone ? (
+                          <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        ) : (
+                          <div style={{ width: 6, height: 6, borderRadius: "50%", background: isActive ? "white" : "#1A73E8" }} />
+                        )}
+                      </div>
+                      <span style={{ fontSize: 13, fontWeight: isDone || isActive ? 500 : 400, color: isDone ? "#22C55E" : isActive ? "#92400E" : "#1A73E8", flex: 1 }}>{label}</span>
+                      {isActive && <div style={{ width: 11, height: 11, border: "2px solid #F59E0B", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />}
                     </div>
-                    <span style={{ fontSize: 13, fontWeight: isDone || isActive ? 500 : 400, color: isDone ? "#22C55E" : isActive ? "#92400E" : "#1A73E8", flex: 1 }}>{label}</span>
-                    {isActive && <div style={{ width: 11, height: 11, border: "2px solid #F59E0B", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />}
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+              <p style={{ fontSize: 11, color: "#94A3B8", textAlign: "center", margin: "0 18px 16px" }}>You can close this window — processing continues in the background.</p>
             </div>
-            <p style={{ fontSize: 11, color: "#94A3B8", textAlign: "center", margin: "0 22px 18px" }}>You can close this window — processing continues in the background.</p>
-          </div>
-        )}
+          )}
 
-        {/* ── DONE ── */}
-        {phase === "done" && (
-          <div style={{ padding: "22px", textAlign: "center" }}>
-            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#F0FDF4", border: "1px solid #DCFCE7", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
-              <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          {/* ── DONE ── */}
+          {phase === "done" && (
+            <div style={{ padding: "22px 18px", textAlign: "center" }}>
+              <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#F0FDF4", border: "1px solid #DCFCE7", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+                <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: "#0F172A", margin: "0 0 6px" }}>Catalog ready!</p>
+              <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 16px", lineHeight: 1.6 }}>Your catalog has been processed. Open the editor to add product hotspots, then use <strong>Add to Theme</strong> to go live.</p>
+              <button onClick={onEdit} style={{ width: "100%", background: "#1A73E8", color: "#fff", border: "none", borderRadius: 9, padding: "10px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+                Open catalog editor →
+              </button>
             </div>
-            <p style={{ fontSize: 15, fontWeight: 600, color: "#0F172A", margin: "0 0 6px" }}>Catalog ready!</p>
-            <p style={{ fontSize: 13, color: "#64748B", margin: "0 0 18px", lineHeight: 1.6 }}>Your catalog has been processed. Open the editor to add product hotspots, then use <strong>Add to Theme</strong> to go live.</p>
-            <button onClick={onEdit} style={{ width: "100%", background: "#1A73E8", color: "#fff", border: "none", borderRadius: 9, padding: "11px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
-              Open catalog editor →
-            </button>
-          </div>
-        )}
+          )}
+
+        </div>{/* end scrollable body */}
       </div>
     </div>
   );
