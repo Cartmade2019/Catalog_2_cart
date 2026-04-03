@@ -542,7 +542,7 @@ const GlobalSettings = () => {
                 Changes apply globally across all your catalogs.
               </p>
               <Link
-                to="/app/home"
+                to="/app/installation"
                 style={{
                   fontSize: 12,
                   color: "#1A73E8",
@@ -553,7 +553,7 @@ const GlobalSettings = () => {
                   gap: 4,
                 }}
               >
-                View docs
+                Submit a Ticket
                 <svg width="11" height="11" fill="none" viewBox="0 0 24 24">
                   <path
                     d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"

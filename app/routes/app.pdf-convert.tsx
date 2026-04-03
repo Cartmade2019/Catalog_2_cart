@@ -55,14 +55,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const uploadDir = path.join(process.cwd(), "public", "uploads");
     fs.mkdirSync(uploadDir, { recursive: true });
     let savedFilename = "";
+    let savedCoverFilename = "";
     const { unstable_createMemoryUploadHandler, unstable_composeUploadHandlers } = await import("@remix-run/node");
     const fileUploadHandler = unstable_createFileUploadHandler({
       directory: uploadDir, maxPartSize: 50_000_000,
-      file: ({ filename }) => { savedFilename = `${Date.now()}-${filename}`; return savedFilename; },
+      file: ({ filename, name }) => {
+        if (name === "pdf") { savedFilename = `${Date.now()}-${filename}`; return savedFilename; }
+        if (name === "coverImage") { savedCoverFilename = `cover-${Date.now()}-${filename}`; return savedCoverFilename; }
+        return filename;
+      },
     });
     const uploadHandler = unstable_composeUploadHandlers(fileUploadHandler, unstable_createMemoryUploadHandler());
     const formData = await unstable_parseMultipartFormData(request, uploadHandler);
     const pdfFile = formData.get("pdf") as any;
+    const coverImageFile = formData.get("coverImage") as any;
 
     if (pdfFile?.size && Number(pdfFile.size) > maxUploadSizeBytes) {
       return json({ error: `Your ${planName} plan allows PDF uploads up to ${maxUploadSizeMB} MB.` }, { status: 403 });
@@ -110,6 +116,30 @@ console.log(pageFormat);
         const fileIds = r.data.data.fileCreate.files.map((f: any) => f.id);
         const previewUrls = await pollFileStatus(shop, accessToken, fileIds);
 
+        // ── Upload cover image to Shopify if provided ─────────────────────────
+        let coverImageUrl: string | null = null;
+        if (savedCoverFilename) {
+          const coverPath = path.join(uploadDir, savedCoverFilename);
+          if (fs.existsSync(coverPath)) {
+            try {
+              const coverBuf = fs.readFileSync(coverPath);
+              const coverUploadUrl = await uploadImage(coverBuf, shop, accessToken, apiVersion);
+              const coverFileRes = await axios.post(
+                `https://${shop}/admin/api/${apiVersion}/graphql.json`,
+                { query: createFileQuery, variables: { files: [{ alt: "cover-image", contentType: "IMAGE", originalSource: coverUploadUrl }] } },
+                { headers: { "X-Shopify-Access-Token": `${accessToken}` } }
+              );
+              const coverFileIds = coverFileRes.data.data.fileCreate.files.map((f: any) => f.id);
+              const coverPreviewUrls = await pollFileStatus(shop, accessToken, coverFileIds);
+              coverImageUrl = coverPreviewUrls?.[0]?.preview?.image?.url ?? null;
+            } catch (err) {
+              console.error("Cover image upload failed:", err);
+            } finally {
+              fs.unlink(coverPath, () => {});
+            }
+          }
+        }
+
         processingStatus[jobId] = 3;
         const key = generateRandomString();
         const metafieldData = {
@@ -123,6 +153,7 @@ console.log(pageFormat);
             targetPageHandle,
             targetPageLabel,
             pageFormat,
+            ...(coverImageUrl ? { coverImage: coverImageUrl } : {}),
             images: previewUrls.map((d: any, i: number) => ({ id: i + 1, url: d.preview.image.url, points: [] })),
           }),
           type: "json", owner_resource: "shop",
@@ -243,15 +274,18 @@ function UploadModal({
   file: File | null;
   onClose: () => void;
   onChangeFile: () => void;
-  onUpload: (file: File, name: string, targetPage: string, targetPageHandle: string, targetPageLabel: string) => void;
+  onUpload: (file: File, name: string, targetPage: string, targetPageHandle: string, targetPageLabel: string, coverImage: File | null) => void;
   phase: "preview" | "progress" | "done";
   step: number;
   onEdit: () => void;
 }) {
   const [catalogName, setCatalogName] = useState(file ? file.name.replace(/\.pdf$/i, "") : "");
-  const [modalStep, setModalStep] = useState<"name" | "page">("name");
+  const [modalStep, setModalStep] = useState<"name" | "page" | "cover">("name");
   const [targetPage, setTargetPage] = useState<string>("");
   const [customPageHandle, setCustomPageHandle] = useState("");
+  const [coverImage, setCoverImage] = useState<File | null>(null);
+  const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
+  const coverImageRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (file) setCatalogName(file.name.replace(/\.pdf$/i, ""));
@@ -259,23 +293,30 @@ function UploadModal({
 
   // Reset inner step when modal closes/reopens
   useEffect(() => {
-    if (phase === "preview") setModalStep("name");
+    if (phase === "preview") { setModalStep("name"); setCoverImage(null); setCoverImagePreview(null); }
   }, [phase]);
+
+  const handleCoverImageSelect = (f: File) => {
+    if (!f.type.startsWith("image/")) return;
+    setCoverImage(f);
+    const url = URL.createObjectURL(f);
+    setCoverImagePreview(url);
+  };
 
   if (!file) return null;
 
   const title = phase === "preview"
-    ? (modalStep === "name" ? "New Catalog" : "Where to display?")
+    ? (modalStep === "name" ? "New Catalog" : modalStep === "page" ? "Where to display?" : "Cover Image")
     : phase === "progress" ? "Processing..." : "Catalog Ready!";
 
   const selectedTarget = PAGE_TARGETS.find((t) => t.value === targetPage);
 
-  const handleConfirmUpload = () => {
+  const handleConfirmUpload = (skipCover = false) => {
     const label = targetPage === "page"
       ? `Custom page${customPageHandle ? ` (/${customPageHandle})` : ""}`
       : selectedTarget?.label ?? "Not specified";
     const handle = targetPage === "page" ? customPageHandle : "";
-    onUpload(file, catalogName.trim() || file.name.replace(/\.pdf$/i, ""), targetPage || "none", handle, label);
+    onUpload(file, catalogName.trim() || file.name.replace(/\.pdf$/i, ""), targetPage || "none", handle, label, skipCover ? null : coverImage);
   };
 
   return (
@@ -285,8 +326,8 @@ function UploadModal({
         {/* Header */}
         <div style={{ padding: "20px 22px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {phase === "preview" && modalStep === "page" && (
-              <button onClick={() => setModalStep("name")} style={{ width: 28, height: 28, borderRadius: 7, background: "#F1F5F9", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {phase === "preview" && (modalStep === "page" || modalStep === "cover") && (
+              <button onClick={() => setModalStep(modalStep === "cover" ? "page" : "name")} style={{ width: 28, height: 28, borderRadius: 7, background: "#F1F5F9", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
             )}
@@ -300,9 +341,9 @@ function UploadModal({
         {/* Step indicator */}
         {phase === "preview" && (
           <div style={{ display: "flex", gap: 6, padding: "12px 22px 0" }}>
-            {["Name your catalog", "Choose a page"].map((s, i) => {
-              const isActive = (i === 0 && modalStep === "name") || (i === 1 && modalStep === "page");
-              const isDone = i === 0 && modalStep === "page";
+            {["Name catalog", "Choose page", "Cover image"].map((s, i) => {
+              const isActive = (i === 0 && modalStep === "name") || (i === 1 && modalStep === "page") || (i === 2 && modalStep === "cover");
+              const isDone = (i === 0 && (modalStep === "page" || modalStep === "cover")) || (i === 1 && modalStep === "cover");
               return (
                 <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -314,7 +355,7 @@ function UploadModal({
                     </div>
                     <span style={{ fontSize: 11, color: isActive ? "#0F172A" : isDone ? "#22C55E" : "#94A3B8", fontWeight: isActive ? 500 : 400 }}>{s}</span>
                   </div>
-                  {i < 1 && <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round" /></svg>}
+                  {i < 2 && <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round" /></svg>}
                 </div>
               );
             })}
@@ -400,17 +441,72 @@ function UploadModal({
 
             <div style={{ display: "flex", gap: 10 }}>
               <button
-                onClick={() => { setTargetPage("none"); handleConfirmUpload(); }}
+                onClick={() => { setTargetPage("none"); setModalStep("cover"); }}
                 style={{ flex: 1, background: "#F1F5F9", color: "#374151", border: "none", borderRadius: 9, padding: "11px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
               >
                 Skip for now
               </button>
               <button
-                onClick={handleConfirmUpload}
+                onClick={() => setModalStep("cover")}
                 disabled={!targetPage}
                 style={{ flex: 2, background: targetPage ? "#1A73E8" : "#E2E8F0", color: targetPage ? "#fff" : "#94A3B8", border: "none", borderRadius: 9, padding: "11px", fontSize: 13, fontWeight: 600, cursor: targetPage ? "pointer" : "not-allowed", transition: "background 0.15s" }}
               >
-                Upload catalog
+                Continue →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── STEP 3: Cover Image ── */}
+        {phase === "preview" && modalStep === "cover" && (
+          <div style={{ padding: "18px 22px 22px" }}>
+            <p style={{ fontSize: 13, color: "#64748B", margin: "0 0 14px", lineHeight: 1.6 }}>
+              Upload a cover image for your catalog (A4 portrait recommended). This will be shown as the catalog thumbnail.
+            </p>
+
+            {/* A4 drop zone */}
+            <div
+              onClick={() => coverImageRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleCoverImageSelect(f); }}
+              style={{ position: "relative", width: "100%", paddingTop: "141.4%", /* A4 ratio */ borderRadius: 10, border: `1.5px dashed ${coverImage ? "#1A73E8" : "#D1D5DB"}`, background: coverImage ? "#F0F6FF" : "#FAFAFA", cursor: "pointer", overflow: "hidden", marginBottom: 14, transition: "all 0.18s" }}
+            >
+              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                {coverImagePreview ? (
+                  <img src={coverImagePreview} alt="Cover preview" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: 8 }} />
+                ) : (
+                  <>
+                    <div style={{ width: 42, height: 42, borderRadius: 10, background: "#fff", border: "1px solid #E2E8F0", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                      <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#1A73E8" strokeWidth="1.75" /><circle cx="8.5" cy="8.5" r="1.5" stroke="#1A73E8" strokeWidth="1.5" /><path d="M21 15l-5-5L5 21" stroke="#1A73E8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    </div>
+                    <p style={{ fontSize: 12, fontWeight: 500, color: "#374151", margin: 0, textAlign: "center" }}>Drop cover image here</p>
+                    <p style={{ fontSize: 11, color: "#94A3B8", margin: 0, textAlign: "center" }}>A4 portrait · JPG, PNG, WebP</p>
+                  </>
+                )}
+              </div>
+              {coverImagePreview && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setCoverImage(null); setCoverImagePreview(null); }}
+                  style={{ position: "absolute", top: 8, right: 8, width: 24, height: 24, borderRadius: "50%", background: "rgba(15,23,42,0.6)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2 }}
+                >
+                  <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="white" strokeWidth="2.5" strokeLinecap="round" /></svg>
+                </button>
+              )}
+            </div>
+            <input ref={coverImageRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverImageSelect(f); e.target.value = ""; }} />
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => handleConfirmUpload(true)}
+                style={{ flex: 1, background: "#F1F5F9", color: "#374151", border: "none", borderRadius: 9, padding: "11px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
+              >
+                Skip
+              </button>
+              <button
+                onClick={() => handleConfirmUpload(false)}
+                style={{ flex: 2, background: "#1A73E8", color: "#fff", border: "none", borderRadius: 9, padding: "11px", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "background 0.15s" }}
+              >
+                {coverImage ? "Upload catalog →" : "Upload without cover →"}
               </button>
             </div>
           </div>
@@ -609,7 +705,7 @@ const PdfConvert = () => {
     setConvertStep(0);
   };
 
-  const handleUploadFromModal = (file: File, name: string, targetPage: string, targetPageHandle: string, targetPageLabel: string) => {
+  const handleUploadFromModal = (file: File, name: string, targetPage: string, targetPageHandle: string, targetPageLabel: string, coverImage: File | null) => {
     setUploadModalPhase("progress");
     setConvertedFileName(name);
     setConvertStep(0);
@@ -619,6 +715,7 @@ const PdfConvert = () => {
     fd.append("targetPage", targetPage);
     fd.append("targetPageHandle", targetPageHandle);
     fd.append("targetPageLabel", targetPageLabel);
+    if (coverImage) fd.append("coverImage", coverImage);
     fetcher.submit(fd, { method: "post", encType: "multipart/form-data" });
   };
 

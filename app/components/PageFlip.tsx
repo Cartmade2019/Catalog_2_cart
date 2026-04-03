@@ -31,7 +31,10 @@ const PageFlip = ({
   shopName,
   planName,
   hotspotColor,
-}: IMAGES& { planName?: string }) => {
+  pageFormat,
+}: IMAGES & { planName?: string; pageFormat?: string }) => {
+  // Non-A4 formats (e.g. A3, A2, A1) display one image at a time spanning full width
+  const isSinglePageMode = pageFormat && pageFormat.toUpperCase() !== "A4";
   const fetcher = useFetcher();
 
 const plan = useSelector((state: any) => state.plan.plan);
@@ -49,6 +52,7 @@ const limits = getPlanLimits({ name: currentPlan });
 
   const [currentPage, setCurrentPage] = useState<number>(0);
   const [animate, setAnimate] = useState<boolean>(false);
+  const [hover, setHover] = useState(false);
   const [markers, setMarkers] = useState<Marker[]>(
     images
       .filter((image: any) => image?.points?.length > 0)
@@ -67,16 +71,18 @@ const initialMarkersRef = useRef<Marker[]>(
   const [selectedMarker, setSelectedMarker] = useState<Marker | null>(null);
 
   const handleNextPage = () => {
-    if (currentPage < images.length - 2) {
+    const step = isSinglePageMode ? 1 : 2;
+    if (currentPage < images.length - step) {
       setAnimate(true);
-      setCurrentPage((prevPage) => prevPage + 2);
+      setCurrentPage((prevPage) => prevPage + step);
     }
   };
 
   const handlePrevPage = () => {
+    const step = isSinglePageMode ? 1 : 2;
     if (currentPage > 0) {
       setAnimate(true);
-      setCurrentPage((prevPage) => prevPage - 2);
+      setCurrentPage((prevPage) => prevPage - step);
     }
   };
 
@@ -252,23 +258,25 @@ if (
     gap: 10,
   }}
 >
-  <button
-    onClick={handleClearUnsavedHotspots}
-    disabled={fetcher.state === "submitting"}
-    style={{
-      background: "#fff",
-      color: "#DC2626",
-      border: "1px solid #FECACA",
-      borderRadius: 8,
-      padding: "8px 20px",
-      fontSize: 13,
-      fontWeight: 600,
-      cursor: fetcher.state === "submitting" ? "not-allowed" : "pointer",
-      opacity: fetcher.state === "submitting" ? 0.7 : 1,
-    }}
-  >
-    Clear all
-  </button>
+<button
+  onClick={handleClearUnsavedHotspots}
+  disabled={fetcher.state === "submitting"}
+  onMouseEnter={() => setHover(true)}
+  onMouseLeave={() => setHover(false)}
+  style={{
+    background: hover ? "#FEE2E2" : "#fff",
+    color: "#DC2626",
+    border: "1px solid #FECACA",
+    borderRadius: 8,
+    padding: "8px 20px",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: fetcher.state === "submitting" ? "not-allowed" : "pointer",
+    opacity: fetcher.state === "submitting" ? 0.7 : 1,
+  }}
+>
+  Clear all
+</button>
 
   <button
     onClick={handleSave}
@@ -314,6 +322,56 @@ if (
                 ref={containerRef}
                 style={{ display: "flex", width: "100%", background: "#fff", borderRadius: 8, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", overflow: "hidden" }}
               >
+            {isSinglePageMode ? (
+              /* ── Single-page mode (non-A4): one image spans full width ── */
+              <div ref={leftImageRef} style={{ position: "relative", flex: 1, minWidth: 0 }}>
+                <img
+                  src={images[currentPage].url}
+                  alt={`Page ${currentPage + 1}`}
+                  style={{ display: "block", width: "100%", height: "auto", cursor: "crosshair", borderRadius: 8 }}
+                  onClick={(event) =>
+                    handleImageMarker(event, leftImageRef, currentPage)
+                  }
+                />
+                {markers.map(
+                  (marker, index) =>
+                    marker.imageIndex === currentPage && (
+                      <Draggable
+                        key={marker.pointId}
+                        onStop={(e: any) =>
+                          handleDragStop(e, leftImageRef, index)
+                        }
+                        onDrag={(e: any) =>
+                          handleDragStop(e, leftImageRef, index)
+                        }
+                      >
+                        <div
+                          title="Double click to edit"
+                          className="image-hotspots--pin z-20 absolute flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse"
+                          style={{
+                            backgroundColor: hotspotColor || marker.color,
+                            top: `${marker.yPercentage}%`,
+                            left: `${marker.xPercentage}%`,
+                          }}
+                          onDoubleClick={() => {
+                            handleMarkerClick(marker);
+                            setSettings({
+                              ...settings,
+                              verticalValue: marker.x,
+                              horizonalValue: marker.y,
+                              heading: marker.product,
+                            });
+                          }}
+                        >
+                          <HotspotButton />
+                        </div>
+                      </Draggable>
+                    ),
+                )}
+              </div>
+            ) : (
+              /* ── Double-page mode (A4): left + right side by side ── */
+              <>
             <div ref={leftImageRef} style={{ position: "relative", flex: 1, minWidth: 0 }}>
                   <img
                     src={images[currentPage].url}
@@ -412,13 +470,23 @@ if (
                       ),
                   )}
                 </div>
+              </>
+            )}
           </div>
             </div>
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, padding: "16px 0" }}>
               <button onClick={handlePrevPage} disabled={currentPage === 0} style={{ background: currentPage === 0 ? "#F1F5F9" : "#fff", border: "1px solid #E2E8F0", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 500, color: currentPage === 0 ? "#94A3B8" : "#374151", cursor: currentPage === 0 ? "default" : "pointer" }}>← Prev</button>
-              <span style={{ fontSize: 13, color: "#64748B", fontWeight: 500 }}>Page {currentPage + 1}–{Math.min(currentPage + 2, images.length)} of {images.length}</span>
-              <button onClick={handleNextPage} disabled={currentPage + 2 >= images.length} style={{ background: currentPage + 2 >= images.length ? "#F1F5F9" : "#fff", border: "1px solid #E2E8F0", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 500, color: currentPage + 2 >= images.length ? "#94A3B8" : "#374151", cursor: currentPage + 2 >= images.length ? "default" : "pointer" }}>Next →</button>
+              <span style={{ fontSize: 13, color: "#64748B", fontWeight: 500 }}>
+                {isSinglePageMode
+                  ? `Page ${currentPage + 1} of ${images.length}`
+                  : `Page ${currentPage + 1}–${Math.min(currentPage + 2, images.length)} of ${images.length}`}
+              </span>
+              {/* DEBUG — remove once confirmed working */}
+              <span style={{ fontSize: 11, background: isSinglePageMode ? "#FEF9C3" : "#DCFCE7", color: isSinglePageMode ? "#92400E" : "#166534", border: `1px solid ${isSinglePageMode ? "#FDE68A" : "#BBF7D0"}`, borderRadius: 4, padding: "2px 7px", fontFamily: "monospace" }}>
+                format: {pageFormat ?? "undefined"} · mode: {isSinglePageMode ? "single" : "double"}
+              </span>
+              <button onClick={handleNextPage} disabled={isSinglePageMode ? currentPage >= images.length - 1 : currentPage + 2 >= images.length} style={{ background: (isSinglePageMode ? currentPage >= images.length - 1 : currentPage + 2 >= images.length) ? "#F1F5F9" : "#fff", border: "1px solid #E2E8F0", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 500, color: (isSinglePageMode ? currentPage >= images.length - 1 : currentPage + 2 >= images.length) ? "#94A3B8" : "#374151", cursor: (isSinglePageMode ? currentPage >= images.length - 1 : currentPage + 2 >= images.length) ? "default" : "pointer" }}>Next →</button>
             </div>
             {selectedMarker && (
               <div className="">

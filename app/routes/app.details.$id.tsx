@@ -73,6 +73,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       targetPageHandle: node.jsonValue?.targetPageHandle ?? "",
       targetPageLabel: node.jsonValue?.targetPageLabel ?? "",
       key: node.key,
+      coverImage: node.jsonValue?.coverImage ?? null,
+      pageFormat: node.jsonValue?.pageFormat ?? "A4",
     };
 
     const appBlockHandle = process.env.SHOPIFY_APP_BLOCK_HANDLE ?? "bd4502bb29e6f7490f7fd7773bc0984c/pdf-converter";
@@ -85,10 +87,68 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 // ── Action ────────────────────────────────────────────────────────────────────
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "POST") {
-    const { authenticate } = await import("../shopify.server");
+    const { authenticate, apiVersion } = await import("../shopify.server");
     const { admin, session } = await authenticate.admin(request);
+    const { shop, accessToken } = session;
     const url = new URL(request.url);
     const id = Number(url.pathname.split("/").pop());
+
+    const contentType = request.headers.get("content-type") ?? "";
+
+    // ── Cover image upload (multipart) ──────────────────────────────────────
+    if (contentType.includes("multipart/form-data")) {
+      const { unstable_parseMultipartFormData, unstable_createFileUploadHandler, unstable_createMemoryUploadHandler, unstable_composeUploadHandlers } = await import("@remix-run/node");
+      const path = await import("path");
+      const fs = await import("fs");
+      const axios = (await import("axios")).default;
+      const { uploadImage, pollFileStatus } = await import("../utils/utils");
+
+      const uploadDir = path.join(process.cwd(), "public", "uploads");
+      fs.mkdirSync(uploadDir, { recursive: true });
+      let savedFilename = "";
+      const fileUploadHandler = unstable_createFileUploadHandler({
+        directory: uploadDir,
+        maxPartSize: 10_000_000,
+        file: ({ filename }) => { savedFilename = `cover-${Date.now()}-${filename}`; return savedFilename; },
+      });
+      const uploadHandler = unstable_composeUploadHandlers(fileUploadHandler, unstable_createMemoryUploadHandler());
+      const formdata = await unstable_parseMultipartFormData(request, uploadHandler);
+
+      if (!savedFilename) return json({ error: "No image uploaded" }, { status: 400 });
+      const coverPath = path.join(uploadDir, savedFilename);
+
+      try {
+        const coverBuf = fs.readFileSync(coverPath);
+        const coverUploadUrl = await uploadImage(coverBuf, shop, accessToken, apiVersion);
+        const createFileQuery = `mutation fileCreate($files: [FileCreateInput!]!) { fileCreate(files: $files) { files { alt fileStatus id preview { image { url } } } userErrors { field message } } }`;
+        const coverFileRes = await axios.post(
+          `https://${shop}/admin/api/${apiVersion}/graphql.json`,
+          { query: createFileQuery, variables: { files: [{ alt: "cover-image", contentType: "IMAGE", originalSource: coverUploadUrl }] } },
+          { headers: { "X-Shopify-Access-Token": accessToken } }
+        );
+        const coverFileIds = coverFileRes.data.data.fileCreate.files.map((f: any) => f.id);
+        const coverPreviewUrls = await pollFileStatus(shop, accessToken, coverFileIds);
+        const coverImageUrl = coverPreviewUrls?.[0]?.preview?.image?.url ?? null;
+
+        if (!coverImageUrl) return json({ error: "Failed to get image URL from Shopify" }, { status: 500 });
+
+        const existingMetafield = await admin.rest.resources.Metafield.find({ session, id });
+        const existingValue = typeof existingMetafield.value === "string" ? JSON.parse(existingMetafield.value) : existingMetafield.value || {};
+        const metafield = new admin.rest.resources.Metafield({ session });
+        metafield.id = id;
+        metafield.value = JSON.stringify({ ...existingValue, coverImage: coverImageUrl });
+        metafield.type = "json";
+        await metafield.save({ update: true });
+
+        return json({ success: true, intent: "updateCoverImage", coverImageUrl });
+      } catch (err) {
+        console.error("Cover image upload failed:", err);
+        return json({ error: "Failed to upload cover image" }, { status: 500 });
+      } finally {
+        try { (await import("fs")).unlinkSync(coverPath); } catch {}
+      }
+    }
+
     const formdata: any = await request.formData();
 
     const intent = formdata.get("_intent");
@@ -415,6 +475,131 @@ function AddToThemeButton({
   );
 }
 
+// ── Cover Image Card ──────────────────────────────────────────────────────────
+function CoverImageCard({ coverImage, catalogNumericId }: { coverImage: string | null; catalogNumericId: number }) {
+  const fetcher = useFetcher<any>();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<string | null>(coverImage);
+  const [uploading, setUploading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingPreview, setPendingPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (fetcher.data?.coverImageUrl) {
+      setPreview(fetcher.data.coverImageUrl);
+      setUploading(false);
+      setShowModal(false);
+    }
+    if (fetcher.data?.error) {
+      setUploading(false);
+    }
+  }, [fetcher.data]);
+
+  const handleFileSelect = (f: File) => {
+    if (!f.type.startsWith("image/")) return;
+    setPendingFile(f);
+    setPendingPreview(URL.createObjectURL(f));
+    setShowModal(true);
+  };
+
+  const handleConfirmUpload = () => {
+    if (!pendingFile) return;
+    setUploading(true);
+    setShowModal(false);
+    const fd = new FormData();
+    fd.append("coverImage", pendingFile);
+    fetcher.submit(fd, { method: "post", encType: "multipart/form-data" });
+    setPendingFile(null);
+    setPendingPreview(null);
+  };
+
+  return (
+    <>
+      <div style={{ background: "#fff", border: "1px solid #E8EDF2", borderRadius: 12, padding: "14px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <p style={{ fontSize: 11, fontWeight: 500, color: "#94A3B8", margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>Cover Image</p>
+
+        {preview ? (
+          /* ── Has cover image ── */
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <div style={{ position: "relative", flexShrink: 0 }}>
+              <div style={{ width: 52, height: 74, borderRadius: 7, overflow: "hidden", border: "1px solid #E8EDF2", background: "#F8FAFC" }}>
+                <img src={preview} alt="Cover" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              </div>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 13, fontWeight: 600, color: "#0F172A", margin: "0 0 4px" }}>Cover Image</p>
+              <p style={{ fontSize: 12, color: "#94A3B8", margin: "0 0 10px" }}>A4 portrait format</p>
+              <button
+                onClick={() => fileRef.current?.click()}
+                style={{ fontSize: 12, fontWeight: 500, color: "#1A73E8", background: "none", border: "none", padding: 0, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
+              >
+                <svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path d="M12 15V4M12 4l-4 4M12 4l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                Replace image
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* ── No cover image — upload prompt ── */
+          <div
+            onClick={() => fileRef.current?.click()}
+            style={{ border: "1.5px dashed #D1D5DB", borderRadius: 9, padding: "16px 14px", textAlign: "center", cursor: "pointer", background: "#FAFAFA", transition: "all 0.18s" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "#1A73E8"; (e.currentTarget as HTMLDivElement).style.background = "#F0F6FF"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "#D1D5DB"; (e.currentTarget as HTMLDivElement).style.background = "#FAFAFA"; }}
+          >
+            {uploading ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 22, height: 22, border: "2.5px solid #1A73E8", borderTop: "2.5px solid transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                <p style={{ fontSize: 12, color: "#64748B", margin: 0 }}>Uploading to Shopify…</p>
+              </div>
+            ) : (
+              <>
+                <div style={{ width: 36, height: 36, borderRadius: 9, background: "#fff", border: "1px solid #E2E8F0", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#1A73E8" strokeWidth="1.75" /><circle cx="8.5" cy="8.5" r="1.5" stroke="#1A73E8" strokeWidth="1.5" /><path d="M21 15l-5-5L5 21" stroke="#1A73E8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </div>
+                <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", margin: "0 0 2px" }}>Add cover image</p>
+                <p style={{ fontSize: 11, color: "#94A3B8", margin: 0 }}>A4 portrait · JPG, PNG, WebP</p>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = ""; }} />
+
+      {/* ── Confirm modal ── */}
+      {showModal && pendingPreview && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, backdropFilter: "blur(6px)" }}>
+          <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 360, boxShadow: "0 24px 64px rgba(15,23,42,0.18)", overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ padding: "18px 20px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 15, fontWeight: 600, color: "#0F172A" }}>Confirm cover image</span>
+              <button onClick={() => { setShowModal(false); setPendingFile(null); setPendingPreview(null); }} style={{ width: 28, height: 28, borderRadius: 7, background: "#F1F5F9", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button>
+            </div>
+            <div style={{ padding: "16px 20px 20px" }}>
+              {/* A4-ratio preview */}
+              <div style={{ position: "relative", width: "100%", paddingTop: "141.4%", borderRadius: 10, overflow: "hidden", border: "1px solid #E8EDF2", marginBottom: 16, background: "#F8FAFC" }}>
+                <img src={pendingPreview} alt="Preview" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+              </div>
+              <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 14px", textAlign: "center" }}>This image will be uploaded to your Shopify CDN and saved as the catalog cover.</p>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => { setShowModal(false); setPendingFile(null); setPendingPreview(null); }} style={{ flex: 1, background: "#F1F5F9", color: "#374151", border: "none", borderRadius: 9, padding: "10px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+                  Cancel
+                </button>
+                <button onClick={handleConfirmUpload} style={{ flex: 2, background: "#1A73E8", color: "#fff", border: "none", borderRadius: 9, padding: "10px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                  Upload cover →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ── UI Component ───────────────────────────────────────────────────────────────
 const DetailPage = () => {
   const loaderData: any = useLoaderData();
@@ -591,6 +776,7 @@ const DetailPage = () => {
               <p style={{ fontSize: 24, fontWeight: 500, color: "#0F172A", margin: 0, letterSpacing: "-0.04em" }}>{s.value}</p>
             </div>
           ))}
+          <CoverImageCard coverImage={pdfData?.coverImage ?? null} catalogNumericId={catalogNumericId} />
         </div>
 
         {/* ── PAGEFLIP EDITOR ── */}
@@ -609,6 +795,7 @@ const DetailPage = () => {
             shopName={loaderData.shop}
             hotspotColor={loaderData.hotspotColor}
             planName={loaderData.planName}
+            pageFormat={pdfData.pageFormat}
           />
         </div>
 
