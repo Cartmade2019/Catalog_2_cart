@@ -1222,7 +1222,7 @@
 
 .mobile-book-stage {
   position: relative;
-  width: min(92vw, 420px);
+  width: min(92vw, 340px);
   aspect-ratio: 3 / 4;
   overflow: hidden;
   border-radius: 16px;
