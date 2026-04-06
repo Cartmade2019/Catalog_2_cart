@@ -291,6 +291,10 @@ function UploadModal({
   const [customPageHandle, setCustomPageHandle] = useState("");
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
+  const [pdfPageThumbnails, setPdfPageThumbnails] = useState<string[]>([]);
+  const [selectedPageIndex, setSelectedPageIndex] = useState<number>(0);
+  const [thumbnailsLoading, setThumbnailsLoading] = useState(false);
+  const [coverSource, setCoverSource] = useState<"pdf" | "device">("pdf");
   const coverImageRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -299,14 +303,72 @@ function UploadModal({
 
   // Reset inner step when modal closes/reopens
   useEffect(() => {
-    if (phase === "preview") { setModalStep("name"); setCoverImage(null); setCoverImagePreview(null); }
+    if (phase === "preview") { setModalStep("name"); setCoverImage(null); setCoverImagePreview(null); setPdfPageThumbnails([]); setSelectedPageIndex(0); setCoverSource("pdf"); }
   }, [phase]);
+
+  // Generate PDF page thumbnails when user reaches the cover step
+  useEffect(() => {
+    if (modalStep !== "cover" || !file || pdfPageThumbnails.length > 0) return;
+    let cancelled = false;
+    (async () => {
+      setThumbnailsLoading(true);
+      try {
+        let pdfjsLib: any = (window as any).pdfjsLib;
+        if (!pdfjsLib) {
+          await new Promise<void>((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error("Failed to load PDF.js"));
+            document.head.appendChild(script);
+          });
+          pdfjsLib = (window as any).pdfjsLib;
+          pdfjsLib.GlobalWorkerOptions.workerSrc =
+            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        }
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const totalPages = Math.min(pdf.numPages, 5);
+        const thumbs: string[] = [];
+        for (let i = 1; i <= totalPages; i++) {
+          if (cancelled) break;
+          const page = await pdf.getPage(i);
+          // Render at 2x scale for crisp quality — same effective resolution as the CDN images
+          const viewport = page.getViewport({ scale: 2.0 });
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const ctx = canvas.getContext("2d")!;
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          thumbs.push(canvas.toDataURL("image/jpeg", 0.92));
+        }
+        if (!cancelled) setPdfPageThumbnails(thumbs);
+      } catch (e) {
+        console.error("PDF thumbnail generation failed:", e);
+      } finally {
+        if (!cancelled) setThumbnailsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [modalStep, file]);
 
   const handleCoverImageSelect = (f: File) => {
     if (!f.type.startsWith("image/")) return;
     setCoverImage(f);
+    setCoverSource("device");
     const url = URL.createObjectURL(f);
     setCoverImagePreview(url);
+  };
+
+  // Convert a data-URL thumbnail to a File object
+  const dataUrlToFile = (dataUrl: string, filename: string): File => {
+    const arr = dataUrl.split(",");
+    const mime = arr[0].match(/:(.*?);/)![1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) u8arr[n] = bstr.charCodeAt(n);
+    return new File([u8arr], filename, { type: mime });
   };
 
   if (!file) return null;
@@ -322,7 +384,15 @@ function UploadModal({
       ? `Custom page${customPageHandle ? ` (/${customPageHandle})` : ""}`
       : selectedTarget?.label ?? "Not specified";
     const handle = targetPage === "page" ? customPageHandle : "";
-    onUpload(file, catalogName.trim() || file.name.replace(/\.pdf$/i, ""), targetPage || "none", handle, label, skipCover ? null : coverImage);
+    let finalCover: File | null = null;
+    if (!skipCover) {
+      if (coverSource === "device" && coverImage) {
+        finalCover = coverImage;
+      } else if (pdfPageThumbnails.length > 0) {
+        finalCover = dataUrlToFile(pdfPageThumbnails[selectedPageIndex] ?? pdfPageThumbnails[0], `cover-page-${selectedPageIndex + 1}.jpg`);
+      }
+    }
+    onUpload(file, catalogName.trim() || file.name.replace(/\.pdf$/i, ""), targetPage || "none", handle, label, finalCover);
   };
 
   return (
@@ -473,45 +543,90 @@ function UploadModal({
           {/* ── STEP 3: Cover Image ── */}
           {phase === "preview" && modalStep === "cover" && (
             <div style={{ padding: "14px 18px 18px" }}>
-              <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 10px", lineHeight: 1.5 }}>
-                Optional cover thumbnail for your catalog. A4 portrait recommended.
+              <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 12px", lineHeight: 1.5 }}>
+                Choose a cover from your PDF pages, or upload a custom image from your device.
               </p>
 
-              {/* Compact horizontal drop zone */}
-              <div
-                onClick={() => coverImageRef.current?.click()}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleCoverImageSelect(f); }}
-                style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 10, border: `1.5px dashed ${coverImage ? "#1A73E8" : "#D1D5DB"}`, background: coverImage ? "#F0F6FF" : "#FAFAFA", cursor: "pointer", marginBottom: 10, transition: "all 0.18s", position: "relative" }}
-              >
-                {coverImagePreview ? (
-                  <>
-                    <div style={{ width: 52, height: 68, borderRadius: 6, overflow: "hidden", flexShrink: 0, border: "1px solid #E2E8F0" }}>
-                      <img src={coverImagePreview} alt="Cover preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              {/* Two-column layout */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+
+                {/* LEFT: Upload from device */}
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: "#374151", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>From device</p>
+                  <div
+                    onClick={() => coverImageRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleCoverImageSelect(f); }}
+                    style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: "14px 10px", borderRadius: 10, border: `1.5px dashed ${coverSource === "device" && coverImagePreview ? "#1A73E8" : "#D1D5DB"}`, background: coverSource === "device" && coverImagePreview ? "#F0F6FF" : "#FAFAFA", cursor: "pointer", transition: "all 0.18s", minHeight: 110, textAlign: "center" }}
+                  >
+                    {coverSource === "device" && coverImagePreview ? (
+                      <>
+                        <div style={{ width: 46, height: 60, borderRadius: 5, overflow: "hidden", border: "1.5px solid #1A73E8", flexShrink: 0 }}>
+                          <img src={coverImagePreview} alt="Cover preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        </div>
+                        <p style={{ fontSize: 11, fontWeight: 500, color: "#1A73E8", margin: 0 }}>Selected</p>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setCoverImage(null); setCoverImagePreview(null); setCoverSource("pdf"); }}
+                          style={{ fontSize: 10, color: "#EF4444", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}
+                        >Remove</button>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "#fff", border: "1px solid #E2E8F0", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                          <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#1A73E8" strokeWidth="1.75" /><circle cx="8.5" cy="8.5" r="1.5" stroke="#1A73E8" strokeWidth="1.5" /><path d="M21 15l-5-5L5 21" stroke="#1A73E8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        </div>
+                        <p style={{ fontSize: 11, fontWeight: 500, color: "#374151", margin: 0 }}>Upload image</p>
+                        <p style={{ fontSize: 10, color: "#94A3B8", margin: 0 }}>JPG, PNG, WebP</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* RIGHT: Pick from PDF pages */}
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: "#374151", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>From PDF pages</p>
+                  {thumbnailsLoading ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 110, gap: 8, background: "#FAFAFA", borderRadius: 10, border: "1px solid #E8EDF2" }}>
+                      <div style={{ width: 14, height: 14, border: "2px solid #1A73E8", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                      <span style={{ fontSize: 11, color: "#94A3B8" }}>Loading pages…</span>
                     </div>
-                    <div style={{ minWidth: 0 }}>
-                      <p style={{ fontSize: 12, fontWeight: 500, color: "#1A73E8", margin: "0 0 2px" }}>Cover selected</p>
-                      <p style={{ fontSize: 11, color: "#94A3B8", margin: "0 0 6px" }}>Click to change image</p>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setCoverImage(null); setCoverImagePreview(null); }}
-                        style={{ fontSize: 11, color: "#EF4444", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}
-                      >
-                        Remove
-                      </button>
+                  ) : pdfPageThumbnails.length > 0 ? (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 4 }}>
+                      {pdfPageThumbnails.map((thumb, idx) => {
+                        const isSelected = coverSource === "pdf" && selectedPageIndex === idx;
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() => { setSelectedPageIndex(idx); setCoverSource("pdf"); setCoverImage(null); setCoverImagePreview(null); }}
+                            style={{ position: "relative", cursor: "pointer", borderRadius: 5, overflow: "hidden", border: `2px solid ${isSelected ? "#1A73E8" : "#E2E8F0"}`, aspectRatio: "0.7", background: "#F1F5F9", transition: "border-color 0.15s", boxShadow: isSelected ? "0 0 0 2px rgba(26,115,232,0.2)" : "none" }}
+                          >
+                            <img src={thumb} alt={`Page ${idx + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                            {isSelected && (
+                              <div style={{ position: "absolute", top: 2, right: 2, width: 12, height: 12, borderRadius: "50%", background: "#1A73E8", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <svg width="7" height="7" fill="none" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                              </div>
+                            )}
+                            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.35)", padding: "2px 0", textAlign: "center" }}>
+                              <span style={{ fontSize: 8, color: "#fff", fontWeight: 500 }}>{idx === 0 ? "Cover" : `P.${idx + 1}`}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </>
-                ) : (
-                  <>
-                    <div style={{ width: 38, height: 38, borderRadius: 9, background: "#fff", border: "1px solid #E2E8F0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#1A73E8" strokeWidth="1.75" /><circle cx="8.5" cy="8.5" r="1.5" stroke="#1A73E8" strokeWidth="1.5" /><path d="M21 15l-5-5L5 21" stroke="#1A73E8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 110, background: "#FAFAFA", borderRadius: 10, border: "1px solid #E8EDF2" }}>
+                      <span style={{ fontSize: 11, color: "#94A3B8" }}>No pages found</span>
                     </div>
-                    <div>
-                      <p style={{ fontSize: 12, fontWeight: 500, color: "#374151", margin: "0 0 2px" }}>Drop cover image here</p>
-                      <p style={{ fontSize: 11, color: "#94A3B8", margin: 0 }}>JPG, PNG, WebP · A4 portrait</p>
-                    </div>
-                  </>
-                )}
+                  )}
+                  {pdfPageThumbnails.length > 0 && coverSource === "pdf" && (
+                    <p style={{ fontSize: 10, color: "#64748B", margin: "5px 0 0", textAlign: "center" }}>
+                      {selectedPageIndex === 0 ? "Page 1 (default)" : `Page ${selectedPageIndex + 1} selected`}
+                    </p>
+                  )}
+                </div>
+
               </div>
+
               <input ref={coverImageRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverImageSelect(f); e.target.value = ""; }} />
 
               <div style={{ display: "flex", gap: 8 }}>
@@ -519,13 +634,13 @@ function UploadModal({
                   onClick={() => handleConfirmUpload(true)}
                   style={{ flex: 1, background: "#F1F5F9", color: "#374151", border: "none", borderRadius: 9, padding: "10px", fontSize: 12, fontWeight: 500, cursor: "pointer" }}
                 >
-                  Skip
+                  No cover
                 </button>
                 <button
                   onClick={() => handleConfirmUpload(false)}
                   style={{ flex: 2, background: "#1A73E8", color: "#fff", border: "none", borderRadius: 9, padding: "10px", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "background 0.15s" }}
                 >
-                  {coverImage ? "Upload catalog →" : "Upload without cover →"}
+                  {coverSource === "device" && coverImage ? "Upload with custom cover →" : pdfPageThumbnails.length > 0 ? `Upload with page ${selectedPageIndex + 1} cover →` : "Upload catalog →"}
                 </button>
               </div>
             </div>

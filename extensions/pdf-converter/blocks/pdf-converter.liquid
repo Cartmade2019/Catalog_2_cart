@@ -121,9 +121,23 @@
                 {% endfor %}
               </div>
             {% else %}
-              <div class="back">
+              <div class="back relative">
                 {% if pdfData.images[0] %}
                   <img src="{{ pdfData.images[0].url }}" alt="Page 1">
+                  {% assign cover_back_points = pdfData.images[0].points %}
+                  {% for point in cover_back_points %}
+                    <div
+                      data-id="hotspot-0-{{ forloop.index }}"
+                      class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse"
+                    >
+                      <div class="image-hotspots--pin-button hotspot--pinned active">
+                        <svg width="25" height="25" viewBox="0 0 25 25" fill="none">
+                          <rect width="25" height="25" rx="12.5" stroke="#F1EFED" stroke-width="9"/>
+                          <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none" stroke="#F1EFED" stroke-width="9"/>
+                        </svg>
+                      </div>
+                    </div>
+                  {% endfor %}
                 {% else %}
                   <div class="empty-page"></div>
                 {% endif %}
