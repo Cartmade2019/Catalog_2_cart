@@ -30,7 +30,7 @@
     {% if product %}
 
       <!-- Title -->
-      <h3 class="font-bold text-[15px] leading-snug mb-1 pr-4" style="color: {{tooltipData.fontColor}};">
+      <h3 class="font-bold text-[16px] leading-snug mb-1 pr-4" style="color: {{tooltipData.fontColor}};">
         {{ product.title }}
       </h3>
 
@@ -86,14 +86,14 @@
         <button
           type="button"
           style="background-color: {{buttonData.backgroundColor}}; color: {{buttonData.textColor}}; padding: {{buttonData.paddingY}}px {{buttonData.paddingX}}px; border-radius: {{buttonData.borderRadius}}px; font-size: {{buttonData.fontSize}}px;"
-          class="add-to-cart-btn pointer-events-auto cursor-pointer flex-1 transition inline-flex items-center justify-center gap-2 font-semibold disabled:cursor-not-allowed disabled:opacity-60">
+          class="add-to-cart-btn pointer-events-auto cursor-pointer flex-1 transition inline-flex items-center justify-center gap-2  disabled:cursor-not-allowed disabled:opacity-60">
           <span class="btn-text">{{ buttonData.buttonText }}</span>
         </button>
 
         <a
           style="background-color: #606060; color: #ffffff; padding: {{buttonData.paddingY}}px {{buttonData.paddingX}}px; border-radius: {{buttonData.borderRadius}}px; font-size: {{buttonData.fontSize}}px;"
           href="/products/{{product.handle}}" target="_blank"
-          class="view-product-btn flex-1 inline-flex items-center justify-center gap-1 font-semibold transition hover:opacity-90">
+          class="view-product-btn flex-1 inline-flex items-center justify-center gap-1  transition hover:opacity-90">
           View Product
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M7 17L17 7M17 7H7M17 7V17"/>
