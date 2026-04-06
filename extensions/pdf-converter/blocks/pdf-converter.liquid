@@ -79,76 +79,60 @@
       <!-- Book Container -->
 
       <div class="book-container">
-        <div
-          class="book{% if isWideFormat %} wide-format{% endif %}"
-          data-wide-format="{{ isWideFormat }}"
-          data-pdf-format="{{ pageFormat }}"
-        >
-          <div class="page">
-            <div class="front cover">
-              {% if pdfData.coverImage %}
-                <img src="{{ pdfData.coverImage }}" alt="{{ pdfData.pdfName }}">
-              {% else %}
-                <div class="cover-title-wrap">
-                  <span class="cover-title">{{ pdfData.pdfName }}</span>
-                </div>
-              {% endif %}
-            </div>
+  <div
+  class="book{% if isWideFormat %} wide-format{% endif %}{% unless pdfData.coverImage %} no-cover{% endunless %}{% if array_length == 1 and pdfData.coverImage == blank %} single-page{% endif %}"
+  data-wide-format="{{ isWideFormat }}"
+  data-pdf-format="{{ pageFormat }}"
+  data-has-cover="{{ pdfData.coverImage | present }}"
+  data-page-count="{{ array_length }}"
+>
+        {% if pdfData.coverImage %}
+  <div class="page">
+    <div class="front cover">
+      <img src="{{ pdfData.coverImage }}" alt="{{ pdfData.pdfName }}">
+    </div>
 
-            {% if isWideFormat %}
-              <!-- Back of cover - LEFT half of image[0] -->
-              <div class="back wide-back relative" style="background-image: url('{{ pdfData.images[0].url }}');">
-                {% assign cover_points = pdfData.images[0].points %}
-                {% for point in cover_points %}
-                  {% comment %}
-                    FIXED: For left pages, we need to adjust xPercentage to account for the half-page view.
-                    The original xPercentage (0-100) refers to the FULL image width.
-                    On left page, we only show the LEFT half (0-50% of original).
-                    So we map: original xPercentage (0-50) → new x (0-100) for this half-page
-                    But we DON'T mirror - the hotspot should stay on the left side where it belongs.
-                  {% endcomment %}
-                  {% if point.xPercentage < 50 %}
-                    {% comment %} Map 0-50% to 0-100% for the left half-page {% endcomment %}
-                    {% assign adjusted_left = point.xPercentage | times: 2 %}
-                    
-                    <div
-                      data-id="hotspot-0-{{forloop.index}}"
-                      class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{adjusted_left}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse"
-                    >
-                      <div class="image-hotspots--pin-button hotspot--pinned active">
-                        <svg width="25" height="25" viewBox="0 0 25 25" fill="none">
-                          <rect width="25" height="25" rx="12.5" stroke="#F1EFED" stroke-width="9"/>
-                          <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none" stroke="#F1EFED" stroke-width="9"/>
-                        </svg>
-                      </div>
-                    </div>
-                  {% endif %}
-                {% endfor %}
+    {% if isWideFormat %}
+      <div class="back wide-back relative" style="background-image: url('{{ pdfData.images[0].url }}');">
+        {% assign cover_points = pdfData.images[0].points %}
+        {% for point in cover_points %}
+          {% if point.xPercentage < 50 %}
+            {% assign adjusted_left = point.xPercentage | times: 2 %}
+            <div data-id="hotspot-0-{{forloop.index}}" class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{adjusted_left}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse">
+              <div class="image-hotspots--pin-button hotspot--pinned active">
+                <svg width="25" height="25" viewBox="0 0 25 25" fill="none"><rect width="25" height="25" rx="12.5" stroke="#F1EFED" stroke-width="9"/><rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none" stroke="#F1EFED" stroke-width="9"/></svg>
               </div>
-            {% else %}
-              <div class="back relative">
-                {% if pdfData.images[0] %}
-                  <img src="{{ pdfData.images[0].url }}" alt="Page 1">
-                  {% assign cover_back_points = pdfData.images[0].points %}
-                  {% for point in cover_back_points %}
-                    <div
-                      data-id="hotspot-0-{{ forloop.index }}"
-                      class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse"
-                    >
-                      <div class="image-hotspots--pin-button hotspot--pinned active">
-                        <svg width="25" height="25" viewBox="0 0 25 25" fill="none">
-                          <rect width="25" height="25" rx="12.5" stroke="#F1EFED" stroke-width="9"/>
-                          <rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none" stroke="#F1EFED" stroke-width="9"/>
-                        </svg>
-                      </div>
-                    </div>
-                  {% endfor %}
-                {% else %}
-                  <div class="empty-page"></div>
-                {% endif %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="back relative">
+        {% if pdfData.images[0] %}
+          <img src="{{ pdfData.images[0].url }}" alt="Page 1">
+          {% assign cover_back_points = pdfData.images[0].points %}
+          {% for point in cover_back_points %}
+            <div data-id="hotspot-0-{{ forloop.index }}" class="custom-hotspot bg-[{{buttonData.hotspotColor}}] points absolute z-[999] top-[{{point.yPercentage}}%] left-[{{point.xPercentage}}%] image-hotspots--pin flex justify-center items-center text-white text-sm h-9 w-9 rounded-full shadow-lg cursor-pointer animate-pulse">
+              <div class="image-hotspots--pin-button hotspot--pinned active">
+                <svg width="25" height="25" viewBox="0 0 25 25" fill="none"><rect width="25" height="25" rx="12.5" stroke="#F1EFED" stroke-width="9"/><rect x="4.5" y="4.5" width="16" height="16" rx="8" fill="none" stroke="#F1EFED" stroke-width="9"/></svg>
               </div>
-            {% endif %}
-          </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-page"></div>
+        {% endif %}
+      </div>
+      
+{% else %}
+  <div class="page no-cover-page">
+    <div class="front cover" style="visibility:hidden;"></div>
+    <div class="back relative">
+      <div class="empty-page"></div>   <!-- must be empty, NOT image[0] -->
+    </div>
+  </div>
+{% endif %}
+  </div>
+{% endif %}
 
           {% if isWideFormat %}
             {% assign total_spreads = array_length %}
@@ -230,15 +214,20 @@
             {% endfor %}
 
           {% else %}
-            <!-- A4 FORMAT - unchanged, works correctly -->
-            {% assign index = 1 %}
-            {% assign remaining = array_length | minus: 1 %}
-            {% assign total_spreads = remaining | divided_by: 2 | ceil %}
-            {% if total_spreads < 1 %}{% assign total_spreads = 1 %}{% endif %}
+    {% comment %} A4 FORMAT {% endcomment %}
+{% if pdfData.coverImage %}
+  {% assign index = 1 %}
+  {% comment %} images[0] already used as back-of-cover, start spreads from images[1] {% endcomment %}
+{% else %}
+  {% assign index = 0 %}
+  {% comment %} no cover, start from images[0] so page 1 is not skipped {% endcomment %}
+{% endif %}
+{% assign total_spreads = array_length | divided_by: 2 | ceil %}
+{% if total_spreads < 1 %}{% assign total_spreads = 1 %}{% endif %}
 
-            {% for spread_idx in (1..total_spreads) %}
-              {% assign front_img_idx = index %}
-              {% assign back_img_idx = index | plus: 1 %}
+{% for spread_idx in (1..total_spreads) %}
+  {% assign front_img_idx = index %}
+  {% assign back_img_idx = index | plus: 1 %}
 
               <div class="page">
                 <div class="front relative">
@@ -264,8 +253,10 @@
                 </div>
 
                 <div class="back">
-                  {% if back_img_idx < array_length %}
-                    <img src="{{ pdfData.images[back_img_idx].url }}" alt="Page {{ back_img_idx | plus: 1 }}">
+          {% assign max_back = array_length | minus: 1 %}
+{% if back_img_idx <= max_back %}
+  <img src="{{ pdfData.images[back_img_idx].url }}" alt="Page {{ back_img_idx | plus: 1 }}">
+              
                     {% assign points = pdfData.images[back_img_idx].points %}
                     {% for point in points %}
                       <div
@@ -312,16 +303,14 @@
       <!-- Thumbnail Navigation -->
       <div class="thumbnail-nav">
         <div class="thumbnail-track">
-          <div class="thumbnail-item" data-spread="0">
-            <div class="thumbnail-img-wrapper {% unless pdfData.coverImage %}cover-thumb{% endunless %}">
-              {% if pdfData.coverImage %}
-                <img src="{{ pdfData.coverImage }}" alt="{{ pdfData.pdfName }}" class="thumbnail-img">
-              {% else %}
-                <span>{{ pdfData.pdfName | truncate: 10, '' }}</span>
-              {% endif %}
-            </div>
-            <span class="thumbnail-label">Cover</span>
-          </div>
+        {% if pdfData.coverImage %}
+  <div class="thumbnail-item" data-spread="0">
+    <div class="thumbnail-img-wrapper">
+      <img src="{{ pdfData.coverImage }}" alt="{{ pdfData.pdfName }}" class="thumbnail-img">
+    </div>
+    <span class="thumbnail-label">Cover</span>
+  </div>
+{% endif %}
 
           {% if isWideFormat %}
             {% assign thumb_last = array_length | minus: 1 %}
@@ -338,7 +327,11 @@
               
             {% endfor %}
           {% else %}
-      {% assign thumb_spread = 1 %}
+{% if pdfData.coverImage %}
+  {% assign thumb_spread = 1 %}
+{% else %}
+  {% assign thumb_spread = 0 %}
+{% endif %}
 {% assign thumb_img_idx = 0 %}
 {% assign thumb_total = array_length | divided_by: 2 | ceil %}
 {% if thumb_total < 1 %}{% assign thumb_total = 1 %}{% endif %}
@@ -375,7 +368,7 @@
 </div>
 
 {% comment %} Mobile Book Viewer {% endcomment %}
-<div class="mobile-book-viewer">
+{% comment %} <div class="mobile-book-viewer">
   <button class="mobile-book-nav prev" aria-label="Previous page">
     <span>
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -428,13 +421,13 @@
       </svg>
     </span>
   </button>
-</div>
+</div> {% endcomment %}
 
 <script src="{{ 'main.js' | asset_url }}" defer="defer"></script>
 
 {% schema %}
 {
-  "name": "PDF-CONVERTER",
+  "name": "Shoppable Catalog",
   "class": "section",
   "target": "section",
   "settings": [

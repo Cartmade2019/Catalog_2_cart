@@ -314,7 +314,7 @@
   let currentBookElement = null;
   let currentPageCallback = null;
   let totalSpreads = 0;
-
+let maxSpread = 0;
   function lockPageScroll() {
     document.documentElement.classList.add("overflow-hidden");
     document.body.classList.add("overflow-hidden");
@@ -479,7 +479,7 @@
       }
     });
   }
-
+  
   function initFlipbook(bookElement) {
     let currentSpread = 0;
     const spreads = bookElement.querySelectorAll(".page");
@@ -502,13 +502,16 @@
         backDiv.setAttribute("data-page", backPageNum.toString());
       }
     });
+const hasCover = bookElement.dataset.hasCover === 'true';
+const pageCount = parseInt(bookElement.dataset.pageCount || '0', 10);
+maxSpread = totalSpreads - 1;
 
-    function updateSpread(newSpread) {
-      currentSpread = Math.max(0, Math.min(newSpread, totalSpreads - 1));
-      bookElement.style.setProperty("--c", currentSpread);
-      closeAllPopovers();
-      updateActiveThumbnail(currentSpread);
-    }
+function updateSpread(newSpread) {
+  currentSpread = Math.max(0, Math.min(newSpread, maxSpread));
+  bookElement.style.setProperty('--c', currentSpread);
+  closeAllPopovers();
+  updateActiveThumbnail(currentSpread);
+}
 
     const prevBtn = document.querySelector(".book-prev-next.prev");
     const nextBtn = document.querySelector(".book-prev-next.next");
@@ -538,7 +541,19 @@
     }
 
     currentPageCallback = updateSpread;
-    updateSpread(0);
+if (!hasCover && pageCount === 1) {
+  bookElement.style.setProperty('--c', 0);
+  currentSpread = 0;
+  updateActiveThumbnail(1);
+  if (newPrevBtn) newPrevBtn.style.display = 'none';
+  if (newNextBtn) newNextBtn.style.display = 'none';
+} else if (!hasCover) {
+  bookElement.style.setProperty('--c', 0);
+  currentSpread = 0;
+  updateActiveThumbnail(1);
+} else {
+  updateSpread(0);
+}
   }
 
   function initThumbnailNavigation() {
@@ -556,7 +571,7 @@
         if (
           !isNaN(targetSpread) &&
           targetSpread >= 0 &&
-          targetSpread < totalSpreads
+          targetSpread <= maxSpread
         ) {
           currentPageCallback(targetSpread);
         }

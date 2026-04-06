@@ -28,7 +28,7 @@
 
   position: relative;
 
-  overflow-x: hidden;
+
 
   padding-bottom: 1.5rem;
 
@@ -46,13 +46,13 @@
 
   background-color: #454545;
 
-  padding: 20px 14px 2px;
+  padding: 20px 14px 20px;
 
   width: 100%;
 
 
 
-  overflow: hidden;
+
 
 }
 
@@ -124,27 +124,17 @@
 
 
 
-/* Book Core Styles - Realistic with page curl effect */
+
 
 .pdf-main-container .book {
-
   position: relative;
-
   display: flex;
-
   margin: 0 auto;
-
   width: 50%;
-
   transform-style: preserve-3d;
-
   transition: translate 0.8s cubic-bezier(0.23, 1, 0.32, 1);
-
   translate: calc(min(var(--c), 1) * 50%) 0%;
-
 }
-
-
 
 .pdf-main-container .page {
 
@@ -393,7 +383,7 @@
 
 .book-prev-next {
   position: absolute;
-  top: 45%;
+  top: 50%;
   transform: translateY(-50%);
   background: transparent;
   border: none;
@@ -412,13 +402,13 @@
 
 .book-prev-next.prev {
 
-  left: 2%;
+  left: -2%;
 
 }
 
 .book-prev-next.next {
 
-  right: 2%;
+  right: -2%;
 
 }
 
@@ -435,6 +425,7 @@
   background: rgba(255, 255, 255, 0.95) !important;
 
   backdrop-filter: blur(8px);
+  border-radius:3px;
 
 }
 
@@ -725,35 +716,22 @@
 /* Popover Modal */
 
 .custom-popover {
-
-  position: fixed;
-
-  z-index: 9999;
-
-  top: 50%;
-
-  left: 50%;
-
-  transform: translate(-50%, -50%);
-
-  width: min(92vw, 340px);
-
-  background: #ffffff;
-
-  border-radius: 20px;
-
-  box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.35);
-
-  border: 1px solid rgba(0, 0, 0, 0.07);
-
-  pointer-events: auto;
-
-  animation: modalFadeIn 0.2s ease;
-
-  overflow: hidden;
-
+    position: fixed;
+    z-index: 9999;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 290px;
+    background: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(0, 0, 0, 0.07);
+    pointer-events: auto;
+    animation: modalFadeIn 0.2s ease;
+    overflow: hidden;
+    max-height: 377px;
+    padding: 10px;
 }
-
 
 
 @keyframes modalFadeIn {
@@ -1021,36 +999,23 @@
 
 /* Close button — inside right panel top-right */
 
-.custom-popover .cross-btn {
+.custom-popover .cross-btn
 
-  position: absolute;
-
-  top: 10px;
-
-  right: 10px;
-
-  background: #f1f5f9;
-
-  border-radius: 50%;
-
-  width: 28px;
-
-  height: 28px;
-
-  cursor: pointer;
-
-  display: flex;
-
-  align-items: center;
-
-  justify-content: center;
-
-  border: none;
-
-  transition: background 0.15s;
-
-  z-index: 10;
-
+ {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: #f1f5f9;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    transition: background 0.15s;
+    z-index: 10;
 }
 
 
@@ -1161,12 +1126,12 @@
 /* Responsive */
 
 @media (max-width: 1024px) {
-
+/* 
   .pdf-main-container .book {
 
     width: 70%;
 
-  }
+  } */
 
 }
 
@@ -1174,11 +1139,11 @@
 
 @media (max-width: 768px) {
 
-  .pdf-main-container .book {
+  /* .pdf-main-container .book {
 
     width: 88%;
 
-  }
+  } */
 
   .book-prev-next.prev {
 
@@ -1342,10 +1307,10 @@
 
 @media (max-width: 767px) {
 
-  .book-container,
+  /* .book-container,
   .thumbnail-nav {
     display: none !important;
-  }
+  } */
 
   .mobile-book-viewer {
     display: flex;

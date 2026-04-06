@@ -9,19 +9,19 @@
     class="cross-btn absolute right-3 top-3 z-20 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-black shadow-md transition hover:bg-white"
     aria-label="Close">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-      <path d="M19 5L5 19M5 5L19 19" stroke="#555" stroke-width="2.5"
+      <path d="M19 5L5 19M5 5L19 19" stroke="#C86C6C" stroke-width="2.5"
         stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
   </button>
 
   <!-- Image: full-width top -->
-  <div class="w-full h-[180px] overflow-hidden bg-[#f4f5f7]">
+  <div class="w-full h-[207px] overflow-hidden ">
     {% if product.featured_image %}
       <img src="{{ product.featured_image | img_url: 'medium' }}" alt="{{ product.title }}"
-        class="w-full h-full object-contain block">
+        class="w-full h-full object-cover block">
     {% else %}
       <img src="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png" alt="{{ product.title }}"
-        class="w-full h-full object-contain block">
+        class="w-full h-full object-cover block">
     {% endif %}
   </div>
 
@@ -30,7 +30,7 @@
     {% if product %}
 
       <!-- Title -->
-      <h3 class="font-bold text-[16px] leading-snug mb-1 pr-4" style="color: {{tooltipData.fontColor}};">
+      <h3 class="font-bold text-[18px] leading-snug mb-1 pr-4" style="color: {{tooltipData.fontColor}};">
         {{ product.title }}
       </h3>
 
@@ -41,8 +41,8 @@
       {% endif %}
 
       <!-- Price -->
-      <p class="text-[13px] font-semibold mb-1" style="color: {{tooltipData.priceColor}};">
-        <span class="opacity-70">Price:</span> {{ product.price | money }}
+      <p class="text-[16px] font-semibold mb-1" style="color: {{tooltipData.priceColor}};">
+        <span>Price:</span> {{ product.price | money }}
       </p>
 
       <!-- Variant select -->
@@ -81,7 +81,7 @@
       </div>
 
       <!-- Buttons: equal width, side by side -->
-      <div class="flex items-stretch gap-2 mt-3">
+      <div class="flex items-stretch gap-2 mt-3 w-[252px] h-[38px]">
         {% comment %} box-shadow: 2px 2px {{buttonData.shadow}}px {{buttonData.shadowColor}}; border: {{buttonData.borderWidth}}px solid {{buttonData.borderColor}}; {% endcomment %}
         <button
           type="button"
