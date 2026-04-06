@@ -39,7 +39,7 @@ const PageFlip = ({
 
 const plan = useSelector((state: any) => state.plan.plan);
 const currentPlan = planName ?? getPlanName(plan);
-const limits = getPlanLimits({ name: currentPlan });
+const limits = getPlanLimits(currentPlan);
   const colorPalette = [
     "#FF5733",
     "#FF8D1A",
