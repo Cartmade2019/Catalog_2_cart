@@ -5,6 +5,7 @@ import fs from "fs/promises";
 import fsSync from "fs";
 import axios from "axios";
 import { PDFDocument } from "pdf-lib";
+import sharp from "sharp";
 
 const execFileAsync = promisify(execFile);
 
@@ -85,7 +86,7 @@ export const extractImagesFromPDF = async (
         "-dNOPAUSE",
         "-dBATCH",
         "-sDEVICE=png16m",
-        "-r150",
+        "-r300",                      // FIX: was "-r150" — 300 DPI for crisp text and images
         `-dFirstPage=${page}`,
         `-dLastPage=${page}`,
         `-sOutputFile=${outputFile}`,
@@ -99,6 +100,7 @@ export const extractImagesFromPDF = async (
 
   return imageUrls;
 };
+
 export const uploadToShopify = async (
   imagePaths: string[],
   shop: string,
@@ -163,6 +165,13 @@ export const uploadImage = async (
   accessToken: any,
   apiVersion: string,
 ) => {
+  // FIX: Convert PNG buffer to high-quality JPEG before upload.
+  // Previously raw PNG bytes were sent with mimeType "image/jpeg" — a format
+  // mismatch that caused Shopify's CDN to re-encode incorrectly and degrade quality.
+  const jpegBuffer = await sharp(imageBuffer)
+    .jpeg({ quality: 92, mozjpeg: true })
+    .toBuffer();
+
   const stagedUploadsQuery = `mutation stagedUploadsCreate($input: [StagedUploadInput!]!) {
     stagedUploadsCreate(input: $input) {
       stagedTargets {
@@ -182,9 +191,9 @@ export const uploadImage = async (
 
   const stagedUploadsVariables = {
     input: {
-      filename: "image.jpg",
+      filename: `pdf-page-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`,
       httpMethod: "POST",
-      mimeType: "image/jpeg",
+      mimeType: "image/jpeg",   // now correctly matches the actual JPEG buffer
       resource: "FILE",
     },
   };
@@ -213,7 +222,8 @@ export const uploadImage = async (
     form.append(name, value);
   });
 
-  form.append("file", new Blob([imageBuffer]), `image-${Date.now()}.jpg`);
+  // FIX: upload the converted jpegBuffer, not the original imageBuffer
+form.append("file", new Blob([jpegBuffer], { type: "image/jpeg" }), `image-${Date.now()}.jpg`);  
 
   await axios.post(url, form, {
     headers: {
@@ -245,20 +255,25 @@ export const pollFileStatus = async (
   accessToken: string,
   fileIds: string[],
 ) => {
-  const GET_FILE_QUERY = `
-    query GetFilePreviews($ids: [ID!]!) {
-      nodes(ids: $ids) {
-        ... on File {
-          fileStatus
-          preview {
-            image {
-              url
-            }
+const GET_FILE_QUERY = `
+  query GetFilePreviews($ids: [ID!]!) {
+    nodes(ids: $ids) {
+      ... on MediaImage {
+        fileStatus
+        image {
+          url          
+          width
+          height
+        }
+        preview {
+          image {
+            url      
           }
         }
       }
     }
-  `;
+  }
+`;
 
   let status = "";
   let retries = 10;

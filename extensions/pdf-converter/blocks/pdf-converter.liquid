@@ -152,7 +152,7 @@
 
           {% if isWideFormat %}
             {% assign total_spreads = array_length %}
-
+{% if total_spreads < 1 %}{% assign total_spreads = 1 %}{% endif %}
             {% for spread_idx in (1..total_spreads) %}
               {% assign front_img_idx = spread_idx | minus: 1 %}
               {% assign back_img_idx = spread_idx %}
@@ -224,7 +224,7 @@
                     {% endfor %}
                   </div>
                 {% else %}
-                  <div class="back wide-back"></div>
+<div class="back wide-back"><div class="empty-page"></div></div>
                 {% endif %}
               </div>
             {% endfor %}
@@ -234,6 +234,7 @@
             {% assign index = 1 %}
             {% assign remaining = array_length | minus: 1 %}
             {% assign total_spreads = remaining | divided_by: 2 | ceil %}
+            {% if total_spreads < 1 %}{% assign total_spreads = 1 %}{% endif %}
 
             {% for spread_idx in (1..total_spreads) %}
               {% assign front_img_idx = index %}
@@ -323,41 +324,49 @@
           </div>
 
           {% if isWideFormat %}
-            {% for s in (0..array_length) %}
+            {% assign thumb_last = array_length | minus: 1 %}
+{% if thumb_last < 0 %}{% assign thumb_last = 0 %}{% endif %}
+            {% for s in (0..thumb_last) %}
               {% assign thumb_spread = s | plus: 1 %}
-              {% if s < array_length %}
+              
                 <div class="thumbnail-item" data-spread="{{ thumb_spread }}">
                   <div class="thumbnail-img-wrapper">
                     <img src="{{ pdfData.images[s].url }}" alt="Page {{ s | plus: 1 }}" class="thumbnail-img">
                   </div>
                   <span class="thumbnail-label">{{ s | plus: 1 }}</span>
                 </div>
-              {% endif %}
+              
             {% endfor %}
           {% else %}
-            {% assign thumb_spread = 1 %}
-            {% assign thumb_img_idx = 1 %}
-            {% assign remaining = array_length | minus: 1 %}
-            {% assign thumb_total = remaining | divided_by: 2 | ceil %}
+      {% assign thumb_spread = 1 %}
+{% assign thumb_img_idx = 0 %}
+{% assign thumb_total = array_length | divided_by: 2 | ceil %}
+{% if thumb_total < 1 %}{% assign thumb_total = 1 %}{% endif %}
 
-            {% for s in (1..thumb_total) %}
-              {% assign front_num = thumb_img_idx %}
-              {% assign back_num = thumb_img_idx | plus: 1 %}
+{% for s in (1..thumb_total) %}
+  {% assign front_num = thumb_img_idx %}
+  {% assign back_num = thumb_img_idx | plus: 1 %}
 
-              <div class="thumbnail-item" data-spread="{{ thumb_spread }}">
-                <div class="thumbnail-img-wrapper">
-                  <img
-                    src="{{ pdfData.images[front_num].url }}"
-                    alt="Pages {{ front_num | plus: 1 }}-{{ back_num | plus: 1 }}"
-                    class="thumbnail-img"
-                  >
-                </div>
-                <span class="thumbnail-label">{{ front_num | plus: 1 }}-{{ back_num | plus: 1 }}</span>
-              </div>
+  {% if front_num < array_length %}
+    <div class="thumbnail-item" data-spread="{{ thumb_spread }}">
+      <div class="thumbnail-img-wrapper">
+        <img
+          src="{{ pdfData.images[front_num].url }}"
+          alt="Page {{ front_num | plus: 1 }}"
+          class="thumbnail-img"
+        >
+      </div>
+      {% if back_num < array_length %}
+        <span class="thumbnail-label">{{ front_num | plus: 1 }}-{{ back_num | plus: 1 }}</span>
+      {% else %}
+        <span class="thumbnail-label">{{ front_num | plus: 1 }}</span>
+      {% endif %}
+    </div>
+  {% endif %}
 
-              {% assign thumb_spread = thumb_spread | plus: 1 %}
-              {% assign thumb_img_idx = thumb_img_idx | plus: 2 %}
-            {% endfor %}
+  {% assign thumb_spread = thumb_spread | plus: 1 %}
+  {% assign thumb_img_idx = thumb_img_idx | plus: 2 %}
+{% endfor %}
           {% endif %}
         </div>
       </div>

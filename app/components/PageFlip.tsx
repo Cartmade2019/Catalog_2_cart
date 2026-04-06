@@ -424,9 +424,9 @@ if (
                     src={
                       currentPage + 1 < images.length
                         ? images[currentPage + 1].url
-                        : images[currentPage].url
+                        : ""
                     }
-                    alt={`Page ${currentPage + 2}`}
+                    
                     style={{ display: "block", width: "100%", height: "auto", cursor: "crosshair", borderRadius: "0 8px 8px 0" }}
                     onClick={(event) =>
                       handleImageMarker(event, rightImageRef, currentPage + 1)
@@ -470,6 +470,7 @@ if (
                       ),
                   )}
                 </div>
+            
               </>
             )}
           </div>

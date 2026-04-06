@@ -97,7 +97,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     (async () => {
       try {
         processingStatus[jobId] = 1;
-        const imageUrls = await extractImagesFromPDF(pdfPath);
+        const imageUrls = await extractImagesFromPDF(pdfPath,{density: 300});
         const readedUrls = imageUrls.map((url: string) => fs.readFileSync(path.join(process.cwd(), "public", url)));
 const sharp = (await import("sharp")).default;
 const firstImageMeta = await sharp(readedUrls[0]).metadata();
@@ -107,12 +107,21 @@ const imgHeight = firstImageMeta.height ?? 0;
 console.log(imgWidth, imgHeight);
 
 const longerSide = Math.max(imgWidth, imgHeight);
-const pageFormat = longerSide > 1800 ? "A3" : "A4";
+const DPI = 300;
+const pageFormat = longerSide > (DPI * 11.7) ? "A3" : "A4"; 
 console.log(pageFormat);
 
         processingStatus[jobId] = 2;
         const uploadedImages = [];
-        for (const buf of readedUrls) uploadedImages.push(await uploadImage(buf, shop, accessToken, apiVersion));
+
+const processedImages = [];
+for (const buf of readedUrls) {
+  const optimized = await sharp(buf)
+    .png({ compressionLevel: 6 })   // or .jpeg({ quality: 92 }) for smaller files
+    .toBuffer();
+  processedImages.push(optimized);
+}
+for (const buf of processedImages) uploadedImages.push(await uploadImage(buf, shop, accessToken, apiVersion));
         const createFileQuery = `mutation fileCreate($files: [FileCreateInput!]!) { fileCreate(files: $files) { files { alt fileStatus id preview { image { url id height width } } } userErrors { field message } } }`;
         const r = await axios.post(`https://${shop}/admin/api/${apiVersion}/graphql.json`, { query: createFileQuery, variables: { files: uploadedImages.map((url) => ({ alt: "alt-tag", contentType: "IMAGE", originalSource: url })) } }, { headers: { "X-Shopify-Access-Token": `${accessToken}` } });
         const fileIds = r.data.data.fileCreate.files.map((f: any) => f.id);
@@ -156,7 +165,7 @@ console.log(pageFormat);
             targetPageLabel,
             pageFormat,
             ...(coverImageUrl ? { coverImage: coverImageUrl } : {}),
-            images: previewUrls.map((d: any, i: number) => ({ id: i + 1, url: d.preview.image.url, points: [] })),
+            images: previewUrls.map((d: any, i: number) => ({ id: i + 1, url: d.image.url, points: [] })),
           }),
           type: "json", owner_resource: "shop",
         };
